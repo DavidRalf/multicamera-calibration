@@ -1,6 +1,6 @@
 # multicamera-calibration
 
-.
+.,
 
 ## Getting started
 
