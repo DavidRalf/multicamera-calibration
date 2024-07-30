@@ -5,6 +5,7 @@ import cv2
 import numpy as np
 import utils as utils
 import matplotlib.pyplot as plt
+
 names = {"Blue",
          "Green",
          "Red",
@@ -30,7 +31,8 @@ def project_3d_to_2d(X, Y, Z, intrinsic, extrinsic):
     y = (point_cam[1] * intrinsic[1, 1] / point_cam[2]) + intrinsic[1, 2]
     return int(x), int(y)
 
-def register_image_with_depth(thecapture, depth_map, micasense_calib,basler_cameraMatrix):
+
+def register_image_with_depth(thecapture, depth_map, micasense_calib, basler_cameraMatrix):
     if thecapture.dls_present():
         img_type = 'reflectance'
         irradiance_list = thecapture.dls_irradiance() + [0]
@@ -41,12 +43,13 @@ def register_image_with_depth(thecapture, depth_map, micasense_calib,basler_came
         irradiance_list = None
     height, width = depth_map.shape
     registered_band = np.zeros((height, width))
-    images=thecapture.undistorted_reflectance(irradiance_list)
-    registered_bands=[]
+    images = thecapture.undistorted_reflectance(irradiance_list)
+    registered_bands = []
     for i, image in enumerate(images):
-        if i ==3:
+        registered_band = np.zeros((height, width))
+        if i == 3:
             break
-        print(f"Register Image from Band {i+1} ")
+        print(f"Register Image from Band {i + 1} ")
         band_data = utils.get_band_data(micasense_calib, i)
         rotation = band_data['rotation']
         # Convert the rotation list to a NumPy array
@@ -73,9 +76,6 @@ def register_image_with_depth(thecapture, depth_map, micasense_calib,basler_came
                     registered_band[y, x] = image[new_y, new_x]
         registered_bands.append(registered_band)
     return registered_bands
-
-
-
 
 
 if __name__ == "__main__":
@@ -116,7 +116,7 @@ if __name__ == "__main__":
     cal_samson_1 = utils.read_basler_calib("/media/david/T71/multispektral/20240416_calib/SAMSON1/SAMSON1.yaml")
     K_L, D_L, _, _ = cal_samson_1
     for i, image in enumerate(thecapture.images):
-        print(f"Processing Band {i+1} and setting calibrated parameters from micasense_calib.yaml")
+        print(f"Processing Band {i + 1} and setting calibrated parameters from micasense_calib.yaml")
         # Get the calibration data for the current band
         band_data = utils.get_band_data(micasense_calib, i)
         # Extract camera matrix and distortion coefficients
@@ -128,48 +128,48 @@ if __name__ == "__main__":
         distortion_parameters = dist_coeffs[0]
         # Assign parameters to the image
         #image.focal_length = focal_length
-       # image.principal_point = principal_point
-       # image.distortion_parameters = distortion_parameters
-    registered_band=register_image_with_depth(thecapture, depth_map_resized, micasense_calib,K_L)
+    # image.principal_point = principal_point
+    # image.distortion_parameters = distortion_parameters
+    registered_band = register_image_with_depth(thecapture, depth_map_resized, micasense_calib, K_L)
     print(len(registered_band))
     # Compute undistorted reflectance images
     band_names_lower = thecapture.band_names_lower()
     rgb_band_indices = [band_names_lower.index('red'),
-                            band_names_lower.index('green'),
-                            band_names_lower.index('blue')]
+                        band_names_lower.index('green'),
+                        band_names_lower.index('blue')]
 
-        # Assuming all bands have the same dimensions, get the dimensions from the first band
-    first_band_data = registered_band[0] # Assuming each image has a `data` attribute
+    # Assuming all bands have the same dimensions, get the dimensions from the first band
+    first_band_data = registered_band[0]  # Assuming each image has a `data` attribute
     height, width = first_band_data.shape
 
-        # Initialize an empty array for normalized images
+    # Initialize an empty array for normalized images
     im_display = np.zeros((height, width, 3), dtype=np.float32)
 
-        # Normalize the RGB bands for true color
+    # Normalize the RGB bands for true color
     for i, registered_image in enumerate(registered_band):
-        band_data = registered_image # Convert memoryview to NumPy array
+        band_data = registered_image  # Convert memoryview to NumPy array
         im_min = np.percentile(band_data.flatten(), 0.5)  # Modify these percentiles to adjust contrast
         im_max = np.percentile(band_data.flatten(), 99.5)  # Good values for many images
 
-            # Prevent division by zero
+        # Prevent division by zero
         im_display[:, :, i] = (band_data - im_min) / (im_max - im_min) if im_max > im_min else 0
 
         # Create RGB composite
     rgb = np.clip(im_display, 0, 1)  # Ensure values are clipped to [0, 1]
 
-        # Display the RGB composite
+    # Display the RGB composite
     plt.figure(figsize=(16, 13))
     plt.imshow(rgb)
     plt.title("RGB Composite from Original Images")
     plt.axis('off')
-    output_png_path="output/rgb_composite_depth.png"
-        # Save the RGB composite as a PNG file
+    output_png_path = "output/rgb_composite_depth.png"
+    # Save the RGB composite as a PNG file
     plt.imsave(output_png_path, rgb, format='png')
     print(f"Saved RGB composite as {output_png_path}.")
 
-        # Show the plot
+    # Show the plot
     plt.show()
     thecapture._Capture__aligned_capture = registered_band
-    thecapture._Capture__aligned_radiometric_pan_sharpened_capture=[None,registered_band]
-    thecapture.save_capture_as_stack("test.tif",sort_by_wavelength=False, pansharpen=False)
+    thecapture._Capture__aligned_radiometric_pan_sharpened_capture = [None, registered_band]
+    thecapture.save_capture_as_stack("test.tif", sort_by_wavelength=False, pansharpen=False)
     print(thecapture.band_names_lower())
