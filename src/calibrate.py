@@ -335,7 +335,7 @@ if __name__ == "__main__":
 
         # Create the Micasense file name by slicing off the first character
         micasense_image_number = image_number[2:]  # This will result in '0002'
-        img_R = cv2.imread(micasense_path.as_posix() + f"/IMG_{micasense_image_number}_{i + 1}.tif")
+        img_R = cv2.imread(micasense_path.as_posix() + f"/IMG_{int(micasense_image_number)-1}_{i + 1}.tif")
         calib_flags = cv2.CALIB_FIX_INTRINSIC
         R, T = calc_stereo(img_L, img_R, cal_samson_1, cal_R, calib_flags=calib_flags)
         print(f"R {R}")
