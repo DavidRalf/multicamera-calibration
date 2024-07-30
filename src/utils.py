@@ -1,3 +1,4 @@
+import cv2
 import numpy
 import skimage
 from pathlib import Path
@@ -5,6 +6,7 @@ import os
 import re
 import numpy as np
 import matplotlib.pyplot as plt
+import yaml
 import imageprocessing.micasense.imageutils as imageutils
 from skimage.transform import warp, matrix_transform, resize, FundamentalMatrixTransform, estimate_transform, \
     ProjectiveTransform
@@ -82,6 +84,96 @@ def make_rgb_composite_from_original(thecapture, irradiance_list, output_png_pat
     # Show the plot
     plt.show()
 
+
 # Example usage
 # Assuming `thecapture` is already created from a filelist and `irradiance_list` is available
-# make_rgb_composite_from_original(thecapture, irradiance_list, output_png_path='rgb_composite_original.png')
+# make_rgb_composite_from_original(thecapture, irradiance_list, output_png_path='output/rgb_composite_original.png"')
+
+def read_basler_calib(file):
+    with open(file, "r") as file:
+        calib = yaml.safe_load(file)
+        K = np.array(calib["cameraMatrix"])
+        D = np.array(calib["distCoeffs"])
+        P, R = None, None
+        if "rotation" in calib:
+            R = np.array(calib["rotation"])
+        if "projectionMatrix" in calib:
+            P = np.array(calib["projectionMatrix"])
+        return K, D, P, R
+
+
+def read_micasense_calib(file):
+    with open(file, "r") as f:
+        calib = yaml.safe_load(f)
+
+    # Create a dictionary to hold the calibration data
+    bands_data = {}
+
+    # Iterate over each band in the calibration data
+    for band_name, data in calib.items():
+        K = np.array(data["cameraMatrix"])
+        D = np.array(data["distCoeffs"])
+
+        # Initialize the band data
+        bands_data[band_name] = {
+            "cameraMatrix": K,
+            "distCoeffs": D
+        }
+
+        # Add rotation and translation if present
+        if "rotation" in data:
+            R = np.array(data["rotation"])
+            bands_data[band_name]["rotation"] = R
+
+        if "translation" in data:
+            T = np.array(data["translation"])
+            bands_data[band_name]["translation"] = T
+
+    return bands_data
+
+
+def get_band_data(bands_data, identifier):
+    if isinstance(identifier, int):  # If index is provided
+        if identifier < len(bands_data):
+            band_name = list(bands_data.keys())[identifier]
+            return bands_data[band_name]
+        else:
+            raise IndexError("Index out of range.")
+    elif isinstance(identifier, str):  # If band name is provided
+        if identifier in bands_data:
+            return bands_data[identifier]
+        else:
+            raise KeyError(f"Band '{identifier}' not found.")
+    else:
+        raise TypeError("Identifier must be either an index (int) or a band name (str).")
+
+
+def undistort(img, K, D, R=None, P=None):
+    if P is None:
+        P = K.copy()
+    if R is None:
+        R = np.eye(3, 3, dtype=np.float32)
+    image_size = (img.shape[1], img.shape[0])
+    map1, map2 = cv2.initUndistortRectifyMap(K, D, R, P, image_size, cv2.CV_16SC2)
+    undistorted_img = cv2.remap(
+        img, map1, map2, interpolation=cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT
+    )
+    return undistorted_img
+
+def draw_lines(img1, img2, lines, pts1, pts2):
+    """img1 - image on which we draw the epilines for the points in img2 lines - corresponding epilines"""
+    r, c, _ = img1.shape
+    img1 = img1.copy()
+    img2 = img2.copy()
+    for r, pt1, pt2 in zip(lines, pts1, pts2):
+        color = tuple(np.random.randint(0, 255, 3).tolist())
+        x0, y0 = map(int, [0, -r[2] / r[1]])
+        x1, y1 = map(int, [c, -(r[2] + r[0] * c) / r[1]])
+        img1 = cv2.line(img1, (x0, y0), (x1, y1), color, 2, cv2.LINE_AA)
+        p1 = pt1[0].astype(np.int32)
+        p2 = pt2[0].astype(np.int32)
+        # print(p1, p2)
+        img1 = cv2.circle(img1, p1, 5, color, -1)
+        img2 = cv2.circle(img2, p2, 5, color, -1)
+    return img1, img2
+
