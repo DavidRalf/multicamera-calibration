@@ -325,7 +325,7 @@ if __name__ == "__main__":
         _objectPoints, _allCorners, _example_frame = detect_charuco_marker(band)
         K, D = normalCalib(_objectPoints, _allCorners, _example_frame, calib_flags=0)
 
-        cal_samson_1 = utils.read_basler_calib("/media/david/T71/multispektral/20240416_calib/SAMSON1/SAMSON1.yaml")
+        cal_samson_1 = utils.read_basler_calib("/media/david/T7/multispektral/20240416_calib/SAMSON1/SAMSON1.yaml")
         cal_R = K, D,None,None
         K_L, D_L, _, _ = cal_samson_1
         K_R, D_R = K, D
