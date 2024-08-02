@@ -6,6 +6,8 @@ import yaml
 import sys
 import glob
 import utils as utils
+import imageprocessing.micasense.capture as capture
+
 
 legacy = cv2.__version__ == "4.2.0"
 debug = False
@@ -318,13 +320,20 @@ if __name__ == "__main__":
 
     print("Micasense Path:", micasense_path)
     print("Basler Path:", basler_path)
-
     data = {}
-    for i, band in enumerate(bands):
-        print(f"Processing band {i + 1}: {band}")
-        _objectPoints, _allCorners, _example_frame = detect_charuco_marker(band)
-        K, D = normalCalib(_objectPoints, _allCorners, _example_frame, calib_flags=0)
 
+    band = list(micasense_path.glob(f'IMG_0001_*.tif'))
+    band = [x.as_posix() for x in band]
+    thecapture = capture.Capture.from_filelist(band)
+    images=thecapture.images
+
+    for i, band in enumerate(images):
+        print(f"Processing band {i + 1}: {band}")
+        #_objectPoints, _allCorners, _example_frame = detect_charuco_marker(band)
+        #K, D = normalCalib(_objectPoints, _allCorners, _example_frame, calib_flags=0)
+        print(band)
+        K=band.cv2_camera_matrix()
+        D=band.cv2_distortion_coeff()
         cal_samson_1 = utils.read_basler_calib("/media/david/T7/multispektral/20240416_calib/SAMSON1/SAMSON1.yaml")
         cal_R = K, D,None,None
         K_L, D_L, _, _ = cal_samson_1

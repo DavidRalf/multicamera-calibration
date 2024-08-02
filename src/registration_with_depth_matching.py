@@ -14,22 +14,25 @@ names = {"Blue",
          "Panchro"}
 
 
-def pixel_to_3d(x, y, depth, intrinsic):
+def pixel_to_3d(cam_positions, depth, intrinsic):
     fx, fy = intrinsic[0, 0], intrinsic[1, 1]
     cx, cy = intrinsic[0, 2], intrinsic[1, 2]
 
-    Z = depth[y, x]
+    Z = np.ones_like(depth)
+    x = cam_positions[..., 0]
+    y = cam_positions[..., 1]
     X = (x - cx) * Z / fx
     Y = (y - cy) * Z / fy
-    return X, Y, Z
+    return np.stack([X, Y, Z], axis=-1)
 
 
-def project_3d_to_2d(X, Y, Z, intrinsic, extrinsic):
-    point_3d = np.array([X, Y, Z, 1]).reshape(4, 1)
-    point_cam = extrinsic @ point_3d
-    x = (point_cam[0] * intrinsic[0, 0] / point_cam[2]) + intrinsic[0, 2]
-    y = (point_cam[1] * intrinsic[1, 1] / point_cam[2]) + intrinsic[1, 2]
-    return int(x), int(y)
+def project_3d_to_2d(new_3d_position, intrinsic, extrinsic):
+    point_3d = np.pad(new_3d_position, ((0, 0), (0, 0), (0, 1)), 'constant', constant_values=1)
+    point_cam = (extrinsic[np.newaxis, np.newaxis] @ point_3d[..., np.newaxis])[..., 0]
+    x = (point_cam[..., 0] * intrinsic[0, 0] / point_cam[..., 2]) + intrinsic[0, 2]
+    y = (point_cam[..., 1] * intrinsic[1, 1] / point_cam[..., 2]) + intrinsic[1, 2]
+
+    return np.round(x).astype(np.int32), np.round(y).astype(np.int32)
 
 
 def register_image_with_depth(thecapture, depth_map, micasense_calib, basler_cameraMatrix):
@@ -62,18 +65,32 @@ def register_image_with_depth(thecapture, depth_map, micasense_calib, basler_cam
         micasense_extrinsic[3, 3] = 1
 
         print("help")
-        micasense_intrinsic = np.array(band_data['cameraMatrix'])
-        for y in range(height):
-            print(f"y {y} finish {range(height)}")
-            for x in range(width):
-                print(f"x,y of depth: {x, y}")
-                X, Y, Z = pixel_to_3d(x, y, depth_map, basler_cameraMatrix)
-                print(f"x,y z : {X, Y, Z}")
-                new_x, new_y = project_3d_to_2d(X, Y, Z, micasense_intrinsic, micasense_extrinsic)
-                print(f" new_x, new_y : {new_x, new_y}")
+        cam_positions = np.stack(np.meshgrid(np.arange(width), np.arange(height)), axis=-1)
+        new_3d_position = pixel_to_3d(cam_positions, depth_map, basler_cameraMatrix)
 
-                if 0 <= new_x < image.shape[1] and 0 <= new_y < image.shape[0]:
-                    registered_band[y, x] = image[new_y, new_x]
+        micasense_intrinsic = np.array(band_data['cameraMatrix'])
+        new_x, new_y = project_3d_to_2d(new_3d_position, micasense_intrinsic, micasense_extrinsic)
+        within_image_x = np.logical_and(np.greater_equal(new_x, 0), np.less(new_x, image.shape[1]))
+        within_image_y = np.logical_and(np.greater_equal(new_y, 0), np.less(new_y, image.shape[0]))
+        within_image = np.logical_and(within_image_x, within_image_y)
+        valid_new_x = new_x[within_image]
+        valid_new_y = new_y[within_image]
+        values = image[valid_new_y, valid_new_x]
+
+        x_positions = cam_positions[..., 0][within_image]
+        y_positions = cam_positions[..., 1][within_image]
+        registered_band[y_positions, x_positions] = values
+     #  for y in range(height):
+     #      print(f"y {y} finish {range(height)}")
+     #      for x in range(width):
+     #          print(f"x,y of depth: {x, y}")
+     #          X, Y, Z = pixel_to_3d(x, y, depth_map, basler_cameraMatrix)
+     #          print(f"x,y z : {X, Y, Z}")
+     #          new_x, new_y = project_3d_to_2d(X, Y, Z, micasense_intrinsic, micasense_extrinsic)
+     #          print(f" new_x, new_y : {new_x, new_y}")
+
+     #          if 0 <= new_x < image.shape[1] and 0 <= new_y < image.shape[0]:
+     #              registered_band[y, x] = image[new_y, new_x]
         registered_bands.append(registered_band)
     return registered_bands
 
@@ -107,8 +124,9 @@ if __name__ == "__main__":
 
     thecapture = capture.Capture.from_filelist(image_names)
     micasense_calib = utils.read_micasense_calib("src/micasense_calib.yaml")
-    cal_samson_1 = utils.read_basler_calib("/media/david/T7/multispektral/20240416_calib/SAMSON1/SAMSON1.yaml")
-    K_L, D_L, _, _ = cal_samson_1
+    cal_samson_1 = utils.read_basler_calib(
+        "/media/david/T7/multispektral/20240416_calib/SAMSON1/SAMSON1_SAMSON2_stereo.yaml")
+    K_L, D_L, P_L, _ = cal_samson_1
     #for i, image in enumerate(thecapture.images):
     #print(f"Processing Band {i + 1} and setting calibrated parameters from micasense_calib.yaml")
 
@@ -123,7 +141,7 @@ if __name__ == "__main__":
     #image.focal_length = focal_length
     #image.principal_point = principal_point
     #image.distortion_parameters = distortion_parameters
-    registered_band = register_image_with_depth(thecapture, depth_map_resized, micasense_calib, K_L)
+    registered_band = register_image_with_depth(thecapture, depth_map_resized, micasense_calib, P_L)
     print(len(registered_band))
 
     band_names_lower = thecapture.band_names_lower()
