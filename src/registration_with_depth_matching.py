@@ -18,7 +18,8 @@ def pixel_to_3d(cam_positions, depth, intrinsic):
     fx, fy = intrinsic[0, 0], intrinsic[1, 1]
     cx, cy = intrinsic[0, 2], intrinsic[1, 2]
 
-    Z = np.ones_like(depth)
+   # = np.ones_like(depth)
+    Z = depth
     x = cam_positions[..., 0]
     y = cam_positions[..., 1]
     X = (x - cx) * Z / fx
@@ -31,7 +32,6 @@ def project_3d_to_2d(new_3d_position, intrinsic, extrinsic):
     point_cam = (extrinsic[np.newaxis, np.newaxis] @ point_3d[..., np.newaxis])[..., 0]
     x = (point_cam[..., 0] * intrinsic[0, 0] / point_cam[..., 2]) + intrinsic[0, 2]
     y = (point_cam[..., 1] * intrinsic[1, 1] / point_cam[..., 2]) + intrinsic[1, 2]
-
     return np.round(x).astype(np.int32), np.round(y).astype(np.int32)
 
 
@@ -70,6 +70,7 @@ def register_image_with_depth(thecapture, depth_map, micasense_calib, basler_cam
 
         micasense_intrinsic = np.array(band_data['cameraMatrix'])
         new_x, new_y = project_3d_to_2d(new_3d_position, micasense_intrinsic, micasense_extrinsic)
+
         within_image_x = np.logical_and(np.greater_equal(new_x, 0), np.less(new_x, image.shape[1]))
         within_image_y = np.logical_and(np.greater_equal(new_y, 0), np.less(new_y, image.shape[0]))
         within_image = np.logical_and(within_image_x, within_image_y)
@@ -112,8 +113,14 @@ if __name__ == "__main__":
     print(depth_map)
     width = 5328
     height = 4608
-
-    depth_map_resized = cv2.resize(depth_map, (width, height))
+    new_size = (width, height)  # OpenCV erwartet (Breite, Höhe) als Tuple
+    #depth_map_resized = cv2.resize(depth_map, (width, height))
+    depth_map_resized = cv2.resize(depth_map, new_size, interpolation=cv2.INTER_CUBIC)
+    # 4. Entferne Rauschen (optional)
+    # Wende den Gaußschen Weichzeichner an, um Rauschen zu reduzieren
+    sigma = 1  # Stärke des Filters, anpassen je nach Bedarf
+    depth_map_resized = cv2.GaussianBlur(depth_map_resized, (0, 0), sigma)
+    #depth_map_resized = cv2.bilateralFilter(depth_map_resized, d=9, sigmaColor=75, sigmaSpace=75)
 
     result = int(image_number) - 1
     num_leading_zeros = len(image_number) - len(image_number.lstrip('0'))
@@ -127,20 +134,19 @@ if __name__ == "__main__":
     cal_samson_1 = utils.read_basler_calib(
         "/media/david/T7/multispektral/20240416_calib/SAMSON1/SAMSON1_SAMSON2_stereo.yaml")
     K_L, D_L, P_L, _ = cal_samson_1
-    #for i, image in enumerate(thecapture.images):
-    #print(f"Processing Band {i + 1} and setting calibrated parameters from micasense_calib.yaml")
+    for i, image in enumerate(thecapture.images):
+        print(f"Processing Band {i + 1} and setting calibrated parameters from micasense_calib.yaml")
 
-    #band_data = utils.get_band_data(micasense_calib, i)
-    #camera_matrix = band_data['cameraMatrix']
-    #dist_coeffs = band_data['distCoeffs']
-
-    #focal_length = camera_matrix[0][0] / image.focal_plane_resolution_px_per_mm[0]
-    #principal_point = (camera_matrix[0][2], camera_matrix[1][2])
-    #distortion_parameters = dist_coeffs[0]
-
-    #image.focal_length = focal_length
-    #image.principal_point = principal_point
-    #image.distortion_parameters = distortion_parameters
+        band_data = utils.get_band_data(micasense_calib, i)
+        camera_matrix = band_data['cameraMatrix']
+        dist_coeffs = band_data['distCoeffs']
+        focal_length = camera_matrix[0][0] / image.focal_plane_resolution_px_per_mm[0]
+        principal_point = (camera_matrix[0][2]/image.focal_plane_resolution_px_per_mm[0], camera_matrix[1][2]/image.focal_plane_resolution_px_per_mm[0])
+        distortion_parameters = dist_coeffs[0]
+        distortion_parameters = [distortion_parameters[0],distortion_parameters[1],distortion_parameters[4],distortion_parameters[2],distortion_parameters[3]]
+        image.focal_length = focal_length
+        image.principal_point = principal_point
+        image.distortion_parameters = distortion_parameters
     registered_band = register_image_with_depth(thecapture, depth_map_resized, micasense_calib, P_L)
     print(len(registered_band))
 
