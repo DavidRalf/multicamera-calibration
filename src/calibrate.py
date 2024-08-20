@@ -1,34 +1,28 @@
-from pathlib import Path
 import argparse
+from pathlib import Path
+
 import cv2
 import numpy as np
-import yaml
-import sys
-import glob
+
 import utils as utils
-import imageprocessing.micasense.capture as capture
+import yaml
 
+def detect_charuco_marker(image_paths):
+    legacy = cv2.__version__ == "4.2.0"
+    debug = False
 
-legacy = cv2.__version__ == "4.2.0"
-debug = False
-SHOW_EPI = False
-CALC_DISPARITY = False
-REFINE_CALIBRATION = False
-# pattern size
-# checkerSize, markerSize,pw,ph,arucoDict = 0.05825,0.05825/2, 16, 9,cv2.aruco.DICT_4X4_100 # nils
-checkerSize, markerSize, pw, ph, arucoDict = (
-    0.06,
-    0.045,
-    12,
-    9,
-    cv2.aruco.DICT_5X5_100,
-)  # coarse
-# checkerSize, markerSize, pw,ph,arucoDict = 0.03,0.022, 24, 17,cv2.aruco.DICT_5X5_1000 # fine
+    # pattern size
+    # checkerSize, markerSize,pw,ph,arucoDict = 0.05825,0.05825/2, 16, 9,cv2.aruco.DICT_4X4_100 # nils
+    checkerSize, markerSize, pw, ph, arucoDict = (
+        0.06,
+        0.045,
+        12,
+        9,
+        cv2.aruco.DICT_5X5_100,
+    )  # coarse
+    # checkerSize, markerSize, pw,ph,arucoDict = 0.03,0.022, 24, 17,cv2.aruco.DICT_5X5_1000 # fine
+    np.set_printoptions(suppress=True, linewidth=1000)
 
-np.set_printoptions(suppress=True, linewidth=1000)
-
-
-def detect_charuco_marker(band):
     dictionary = cv2.aruco.getPredefinedDictionary(arucoDict)
     if legacy:
         board = cv2.aruco.CharucoBoard_create(pw, ph, checkerSize, markerSize, dictionary)
@@ -51,20 +45,12 @@ def detect_charuco_marker(band):
     objp = np.zeros((1, (pw - 1) * (ph - 1), 3), np.float32)
     objp[0, :, :2] = ind.T.reshape(-1, 2)
 
-    #if len(sys.argv) <= 1:
-    #    print(f"usage: {sys.argv[0]} IMAGE_PREFIX_FOR_GLOB")
-    #    exit(0)
-
     cv2.namedWindow("frame", cv2.WINDOW_NORMAL)
     allCorners = []
     allIds = []
     objectPoints = []
-    #filepattern = sys.argv[1] + "*.png"
-    print(f"{band = }")
-    #gg = glob.glob(filepattern)
-    # print(gg)
 
-    for f in sorted(band):
+    for f in sorted(image_paths):
         print("filename:", f)
         ret, frame = (True, cv2.imread(f))
         if np.any(frame is None):
@@ -119,7 +105,6 @@ def detect_charuco_marker(band):
     return objectPoints, allCorners, frame
 
 
-# print(allCorners)
 def normalCalib(objectPoints, allCorners, example_frame, calib_flags=0):
     print("\n---------- Normal Calib ----------")
     inputsize = example_frame.shape[:2]
@@ -128,26 +113,6 @@ def normalCalib(objectPoints, allCorners, example_frame, calib_flags=0):
     nretval, ncameraMatrix, ndistCoeffs, nrvecs, ntvecs = \
         cv2.calibrateCamera(objectPoints, allCorners, inputsize, None, None, flags=calib_flags)
     print(f"normal calib RMS: {nretval}")
-
-    if REFINE_CALIBRATION:
-        # calculate reprojection errors https://docs.opencv.org/4.x/dc/dbb/tutorial_py_calibration.html
-        error_list = []
-        for i in range(len(objectPoints)):
-            imgpoints2, _ = cv2.projectPoints(objectPoints[i], nrvecs[i], ntvecs[i], ncameraMatrix, ndistCoeffs)
-            error = cv2.norm(allCorners[i], imgpoints2, cv2.NORM_L2) / len(imgpoints2)
-            error_list.append(error)
-        # compute variance of errors
-        error_std = np.sqrt(np.mean(np.square(error_list)))
-
-        # remove outlier from data
-        objectPoints = [op for op, err in zip(objectPoints, error_list) if err < error_std]
-        allCorners = [op for op, err in zip(allCorners, error_list) if err < error_std]
-
-        # repeat calibration without outlier data
-        nretval, ncameraMatrix, ndistCoeffs, nrvecs, ntvecs = \
-            cv2.calibrateCamera(objectPoints, allCorners, inputsize, None, None, flags=calib_flags)
-        print(f"normal calib (without outlier) RMS: {nretval}")
-
     print("cameraMatrix", ncameraMatrix, "distCoeffs", ndistCoeffs, sep="\n")
     # print(newCam)
     rect = cv2.undistort(
@@ -158,9 +123,7 @@ def normalCalib(objectPoints, allCorners, example_frame, calib_flags=0):
     return ncameraMatrix, ndistCoeffs
 
 
-def calc_stereo(img_L, img_R, cal_L, cal_R, calib_flags=0):
-    # pattern size
-    # checkerSize, markerSize,pw,ph,arucoDict = 0.05825,0.05825/2, 16, 9,cv2.aruco.DICT_4X4_100 # nils
+def calibrate_extrinsic(img_L, img_R, intrinsic_L, intrinsic_R, calib_flags):
     checkerSize, markerSize, pw, ph, arucoDict = (
         0.06,
         0.045,
@@ -181,8 +144,6 @@ def calc_stereo(img_L, img_R, cal_L, cal_R, calib_flags=0):
     board.setLegacyPattern(True)
     parameters = cv2.aruco.DetectorParameters()
     detector = cv2.aruco.CharucoDetector(board)
-    if debug:
-        print(board.chessboardCorners)
 
     ind = np.indices(((pw - 1), (ph - 1)))
     ind[1, :] = np.fliplr(ind[1, :])
@@ -190,9 +151,8 @@ def calc_stereo(img_L, img_R, cal_L, cal_R, calib_flags=0):
     objp = np.zeros((1, (pw - 1) * (ph - 1), 3), np.float32)
     objp[0, :, :2] = ind.T.reshape(-1, 2)
 
-
-    K_L, D_L, R_L, P_L = cal_L
-    K_R, D_R, R_R, P_R = cal_R
+    K_L, D_L = intrinsic_L
+    K_R, D_R = intrinsic_R
     gray_L = cv2.cvtColor(img_L, cv2.COLOR_BGR2GRAY)
     gray_R = cv2.cvtColor(img_R, cv2.COLOR_BGR2GRAY)
 
@@ -258,112 +218,94 @@ def calc_stereo(img_L, img_R, cal_L, cal_R, calib_flags=0):
     # print(f"{ret = }\n{M1 = }\n{M2 = }")
     print(f"{K_L = }\n{D_L = }\n{K_R = }\n{D_R = }")
 
-    # show epilines
-    if SHOW_EPI:
-        lines1 = cv2.computeCorrespondEpilines(charuco_corners_R, 2, F)
-        lines1 = lines1.reshape(-1, 3)
-        img_L_line, img_R_line = utils.draw_lines(
-            img_L, img_R, lines1, charuco_corners_L, charuco_corners_R
-        )
-
-        lines2 = cv2.computeCorrespondEpilines(charuco_corners_L, 1, F)
-        lines2 = lines2.reshape(-1, 3)
-        img_R_line2, img_L_line2 = utils.draw_lines(
-            img_R, img_L, lines2, charuco_corners_R, charuco_corners_L
-        )
-
-        cv2.namedWindow("epi", cv2.WINDOW_GUI_NORMAL)
-        cv2.moveWindow("epi", 0, 0)
-        cv2.imshow("epi", img_L_line)
-        cv2.namedWindow("epi2", cv2.WINDOW_GUI_NORMAL)
-        cv2.moveWindow("epi2", 680, 0)
-        cv2.imshow("epi2", img_R_line)
-        cv2.namedWindow("epi3", cv2.WINDOW_GUI_NORMAL)
-        cv2.moveWindow("epi3", 0, 480)
-        cv2.imshow("epi3", img_L_line2)
-        cv2.namedWindow("epi4", cv2.WINDOW_GUI_NORMAL)
-        cv2.moveWindow("epi4", 680, 480)
-        cv2.imshow("epi4", img_R_line2)
-
     return R, T
 
 
+def calibrate_intrinsic(image_paths):
+    _objectPoints, _allCorners, _example_frame = detect_charuco_marker(image_paths)
+    K, D = normalCalib(_objectPoints, _allCorners, _example_frame, calib_flags=0)
+    return K, D
 
-if __name__ == "__main__":
-    # Define the argument parser
-    parser = argparse.ArgumentParser(
-        description='Calibrate intrinsics and extrinsics between Basler and Micasense bands.')
 
-    # Add positional arguments
-    parser.add_argument('micasense_path', type=str,
-                        help='Path to the directory containing the micasense calibration images')
-    parser.add_argument('basler_path', type=str, help='Path to the directory containing basler calibration images')
-    parser.add_argument('image_number', type=str,
-                        help='Image number for extrinsics calibration based on the basler numbers with leading zeros (e.g., 0059)')
-    parser.add_argument('output_path', type=str, nargs='?', default=".", help='Path to save the calibration YAML file')
+def calibrate_basler(basler1_path, basler2_path, image_number):
+    K_1, D_1 = calibrate_intrinsic([str(img) for img in basler1_path.glob('*.png')])
+    K_2, D_2 = calibrate_intrinsic([str(img) for img in basler2_path.glob('*.png')])
 
-    # Parse the arguments
-    args = parser.parse_args()
+    img_L = cv2.imread(f"{basler1_path}/{image_number}.png")
+    img_R = cv2.imread(f"{basler2_path}/{image_number}.png")
 
-    # Access the arguments
-    micasense_path = Path(args.micasense_path)
-    basler_path = Path(args.basler_path)
-    output_path = Path(args.output_path)
-    image_number = args.image_number
+    R, T = calibrate_extrinsic(img_L, img_R, (K_1, D_1), (K_2, D_2), calib_flags=cv2.CALIB_FIX_INTRINSIC)
+    image_size = (img_L.shape[1], img_L.shape[0])
 
-    # Collect image names that match the pattern
-    bands = []
-    for i in range(1, 7):  # Assuming there are 6 bands
-        band = list(micasense_path.glob(f'IMG_*_{i}.tif'))
-        band = [x.as_posix() for x in band]
-        bands.append(band)
+    R_L, R_R, P_L, P_R, Q, roi_L, roi_R = cv2.stereoRectify(K_1, D_1, K_2, D_2, image_size, R, T,
+                                                            flags=cv2.CALIB_ZERO_DISPARITY)
 
-    print("Micasense Path:", micasense_path)
-    print("Basler Path:", basler_path)
+    utils.write_calib("calib/SAMSON1_SAMSON2_stereo.yaml", K_1, D_1, R_L, P_L)
+    utils.write_calib("calib/SAMSON2_SAMSON1_stereo.yaml", K_2, D_2, R_R, P_R)
+
+def calibrate_micasense(micasense_path, basler1_path, image_number):
     data = {}
+    cal_samson_1 = utils.read_basler_calib("calib/SAMSON1_SAMSON2_stereo.yaml")
 
-    band = list(micasense_path.glob(f'IMG_0001_*.tif'))
-    band = [x.as_posix() for x in band]
-    thecapture = capture.Capture.from_filelist(band)
-    images=thecapture.images
+    for i in range(1, 7):
+        band_images = list(micasense_path.glob(f'IMG_*_{i}.tif'))
+        band_images = [str(img) for img in band_images]
 
-    for i, band in enumerate(images):
-        print(f"Processing band {i + 1}: {band}")
-        _objectPoints, _allCorners, _example_frame = detect_charuco_marker(bands[i])
-        K, D = normalCalib(_objectPoints, _allCorners, _example_frame, calib_flags=0)
-        print(band)
-        #K=band.cv2_camera_matrix()
-        #D=band.cv2_distortion_coeff()
-        cal_samson_1 = utils.read_basler_calib("/media/david/T71/multispektral/20240416_calib/SAMSON1/SAMSON1.yaml")
-        cal_R = K, D,None,None
-        K_L, D_L, _, _ = cal_samson_1
-        K_R, D_R = K, D
+        K_M, D_M = calibrate_intrinsic(band_images)
 
-        # Load the Basler image using the original image_number
-        img_L = cv2.imread(basler_path.as_posix() + f"/{image_number}.png")
+        micasense_image_number = f"{int(image_number) - 1:0{len(image_number)}d}"[2:]
 
-        # Create the Micasense file name by slicing off the first character
-        result = int(image_number) - 1
-        num_leading_zeros = len(image_number) - len(image_number.lstrip('0'))
-        formatted_result = f"{result:0{len(image_number)}d}"
-        micasense_image_number = formatted_result[2:]
-        img_R = cv2.imread(micasense_path.as_posix() + f"/IMG_{micasense_image_number}_{i + 1}.tif")
-        calib_flags = cv2.CALIB_FIX_INTRINSIC
-        R, T = calc_stereo(img_L, img_R, cal_samson_1, cal_R, calib_flags=calib_flags)
-        print(f"R {R}")
+        img_M = cv2.imread(f"{micasense_path}/IMG_{micasense_image_number}_{i}.tif")
+        img_B = cv2.imread(f"{basler1_path}/{image_number}.png")
 
-        # Add or update the band data
-        band_name = f"band_{i + 1}"
-        data[band_name] = {
-            'cameraMatrix': K.tolist(),
-            'distCoeffs': D.tolist(),
-            'rotation': R.tolist(),
-            'translation': T.tolist(),
+        K_B, D_B, _, _ = cal_samson_1
+
+        R_B1_M, T_B1_M = calibrate_extrinsic(img_B, img_M, (K_B, D_B), (K_M, D_M), calib_flags=cv2.CALIB_FIX_INTRINSIC)
+
+        data[f"band_{i}"] = {
+            'cameraMatrix': K_M.tolist(),
+            'distCoeffs': D_M.tolist(),
+            'rotation': R_B1_M.tolist(),
+            'translation': T_B1_M.tolist(),
         }
 
-    with open(output_path / "micasense_calib.yaml", "w") as file:
+
+    with open("calib/micasense_calib.yaml", "w") as file:
         yaml.safe_dump(data, file, default_flow_style=None)
 
-    print(f"Calibration data saved to {output_path / 'micasense_calib.yaml'}")
+
+def parse_args():
+    parser = argparse.ArgumentParser(description='Calibrate intrinsics and extrinsics.')
+    parser.add_argument('micasense_path', type=str, help='Path to the Micasense calibration images')
+    parser.add_argument('basler1_path', type=str, help='Path to the Basler (SAMSON1) calibration images')
+    parser.add_argument('basler2_path', type=str, help='Path to the Basler (SAMSON2) calibration images')
+    parser.add_argument('image_number', type=str, help='Image number for extrinsics calibration (e.g., 0059)')
+    parser.add_argument('calculate_basler_new', type=utils.str_to_bool,
+                        help='Recalculate Basler calibration (true/false)')
+    parser.add_argument('calculate_micasense_new', type=utils.str_to_bool, nargs='?', default='true',
+                        help='Recalculate Micasense calibration (true/false, default: true)')
+    return parser.parse_args()
 
 
+def validate_directory(path, name):
+    if not path.is_dir():
+        raise ValueError(f"The provided {name} path '{path}' is not a valid directory.")
+
+
+if __name__ == "__main__":
+    args = parse_args()
+
+    micasense_path = Path(args.micasense_path)
+    basler1_path = Path(args.basler1_path)
+    basler2_path = Path(args.basler2_path)
+
+    validate_directory(micasense_path, "Micasense")
+    validate_directory(basler1_path, "Basler1")
+    validate_directory(basler2_path, "Basler2")
+
+    files_exist = utils.check_stereo_yaml_files("calib")
+
+    if args.calculate_basler_new or not files_exist:
+        calibrate_basler(basler1_path, basler2_path, args.image_number)
+    if args.calculate_micasense_new:
+        calibrate_micasense(micasense_path, basler1_path, args.image_number)

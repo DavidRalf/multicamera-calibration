@@ -177,3 +177,36 @@ def draw_lines(img1, img2, lines, pts1, pts2):
         img2 = cv2.circle(img2, p2, 5, color, -1)
     return img1, img2
 
+
+
+def str_to_bool(value):
+    """Convert string to boolean."""
+    if value.lower() in ['true', '1', 'yes']:
+        return True
+    elif value.lower() in ['false', '0', 'no']:
+        return False
+    else:
+        raise ValueError(f"Boolean value expected, got '{value}'")
+
+
+def write_calib(filename, K, D, R, P):
+    with open(filename, "w") as file:
+        yaml.safe_dump(
+            {
+                "cameraMatrix": K.tolist(),
+                "distCoeffs": D.tolist(),
+                "rotation": R.tolist(),
+                "projectionMatrix": P.tolist(),
+            },
+            file,
+            default_flow_style=None,
+        )
+    print("wrote:", filename)
+
+def check_stereo_yaml_files(directory_path):
+    path = Path(directory_path)
+    required_files = ["SAMSON1_SAMSON2_stereo.yaml", "SAMSON2_SAMSON1_stereo.yaml"]
+    missing_files = [f for f in required_files if not (path / f).is_file()]
+    return not missing_files
+
+
