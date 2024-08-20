@@ -280,8 +280,8 @@ def parse_args():
     parser.add_argument('basler1_path', type=str, help='Path to the Basler (SAMSON1) calibration images')
     parser.add_argument('basler2_path', type=str, help='Path to the Basler (SAMSON2) calibration images')
     parser.add_argument('image_number', type=str, help='Image number for extrinsics calibration (e.g., 0059)')
-    parser.add_argument('calculate_basler_new', type=utils.str_to_bool,
-                        help='Recalculate Basler calibration (true/false)')
+    parser.add_argument('calculate_basler_new', type=utils.str_to_bool,nargs='?', default='false',
+                        help='Recalculate Basler calibration (true/false, default: false)')
     parser.add_argument('calculate_micasense_new', type=utils.str_to_bool, nargs='?', default='true',
                         help='Recalculate Micasense calibration (true/false, default: true)')
     return parser.parse_args()
