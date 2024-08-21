@@ -3,9 +3,11 @@ from pathlib import Path
 
 import cv2
 import numpy as np
-
-import utils as utils
 import yaml
+
+import imageprocessing.micasense.image as image
+import utils as utils
+
 
 def detect_charuco_marker(image_paths):
     legacy = cv2.__version__ == "4.2.0"
@@ -52,11 +54,17 @@ def detect_charuco_marker(image_paths):
 
     for f in sorted(image_paths):
         print("filename:", f)
-        ret, frame = (True, cv2.imread(f))
+        if f.endswith(".tif"):
+            frame = image.Image(f).raw()
+            frame = (frame / 256).astype(np.uint8)
+            gray = frame
+        else:
+            ret, frame = (True, cv2.imread(f))
+            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         if np.any(frame is None):
             continue
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        debugFrame = frame.copy()
+
+        debugFrame = np.copy(frame)
         if legacy:
             charuco_corners, charuco_ids, rejectedImgPoints = cv2.aruco.detectMarkers(
                 gray, dictionary
@@ -154,7 +162,11 @@ def calibrate_extrinsic(img_L, img_R, intrinsic_L, intrinsic_R, calib_flags):
     K_L, D_L = intrinsic_L
     K_R, D_R = intrinsic_R
     gray_L = cv2.cvtColor(img_L, cv2.COLOR_BGR2GRAY)
-    gray_R = cv2.cvtColor(img_R, cv2.COLOR_BGR2GRAY)
+    if img_R.dtype == np.uint16:
+        img_R = (img_R / 256).astype(np.uint8)
+        gray_R = img_R
+    else:
+        gray_R = cv2.cvtColor(img_R, cv2.COLOR_BGR2GRAY)
 
     # Detect aruco markers
     dict_L = {}
@@ -243,6 +255,7 @@ def calibrate_basler(basler1_path, basler2_path, image_number):
     utils.write_calib("calib/SAMSON1_SAMSON2_stereo.yaml", K_1, D_1, R_L, P_L)
     utils.write_calib("calib/SAMSON2_SAMSON1_stereo.yaml", K_2, D_2, R_R, P_R)
 
+
 def calibrate_micasense(micasense_path, basler1_path, image_number):
     data = {}
     cal_samson_1 = utils.read_basler_calib("calib/SAMSON1_SAMSON2_stereo.yaml")
@@ -255,7 +268,7 @@ def calibrate_micasense(micasense_path, basler1_path, image_number):
 
         micasense_image_number = f"{int(image_number) - 1:0{len(image_number)}d}"[2:]
 
-        img_M = cv2.imread(f"{micasense_path}/IMG_{micasense_image_number}_{i}.tif")
+        img_M = image.Image(f"{micasense_path}/IMG_{micasense_image_number}_{i}.tif").raw()
         img_B = cv2.imread(f"{basler1_path}/{image_number}.png")
 
         K_B, D_B, _, _ = cal_samson_1
@@ -269,7 +282,6 @@ def calibrate_micasense(micasense_path, basler1_path, image_number):
             'translation': T_B1_M.tolist(),
         }
 
-
     with open("calib/micasense_calib.yaml", "w") as file:
         yaml.safe_dump(data, file, default_flow_style=None)
 
@@ -280,7 +292,7 @@ def parse_args():
     parser.add_argument('basler1_path', type=str, help='Path to the Basler (SAMSON1) calibration images')
     parser.add_argument('basler2_path', type=str, help='Path to the Basler (SAMSON2) calibration images')
     parser.add_argument('image_number', type=str, help='Image number for extrinsics calibration (e.g., 0059)')
-    parser.add_argument('calculate_basler_new', type=utils.str_to_bool,nargs='?', default='false',
+    parser.add_argument('calculate_basler_new', type=utils.str_to_bool, nargs='?', default='false',
                         help='Recalculate Basler calibration (true/false, default: false)')
     parser.add_argument('calculate_micasense_new', type=utils.str_to_bool, nargs='?', default='true',
                         help='Recalculate Micasense calibration (true/false, default: true)')
