@@ -1,9 +1,13 @@
 import os
 
+import cv2
+import imageio
 import numpy as np
 from osgeo import gdal
+from osgeo_utils.gdal2tiles import filename
 
 import src.utils as utils
+from micasense import imageutils
 
 
 class RegisteredMicasense:
@@ -20,6 +24,9 @@ class RegisteredMicasense:
         self.images = []
         self.load_images(images)
         self.file_names = file_names if file_names is not None else []
+
+        self.rgb_composite_enhanced = None
+        self.rgb_composite = None
 
     def __repr__(self):
         return f'RegisteredMicasense with {len(self.images)} images.'
@@ -106,3 +113,66 @@ class RegisteredMicasense:
             out_band.WriteArray(image)
             out_band.FlushCache()
             out_dataset = None  # Close the dataset
+
+    def get_rgb_indices(self):
+        return [2, 1, 0]
+
+    def make_rgb_composite(self):
+        rgb_band_indices = self.get_rgb_indices()
+
+        band_red = self.get_image(rgb_band_indices[0])
+        band_green = self.get_image(rgb_band_indices[1])
+        band_blue = self.get_image(rgb_band_indices[2])
+
+        rgb_stack = np.stack((band_red, band_green, band_blue), axis=-1)
+
+        im_display = np.zeros(rgb_stack.shape, dtype=np.float32)
+        non_zero_values = rgb_stack[rgb_stack > 0]
+        im_min = np.percentile(non_zero_values.flatten(), 0.5)
+        im_max = np.percentile(non_zero_values.flatten(), 99.5)
+
+        for i, band_index in enumerate(rgb_band_indices):
+            im_display[:, :, i] = imageutils.normalize(rgb_stack[:, :, i], im_min, im_max)
+        self.rgb_composite = im_display
+
+    def save_rgb_composite(self, output_directory="../output/comp"):
+        if not os.path.exists(output_directory):
+            os.makedirs(output_directory)
+        filename=os.path.join(output_directory, f"rgb_composite_{utils.get_number_from_image_name(self.file_names[0])}.png")
+        imageio.imwrite(filename, (255 * self.get_rgb_composite()).astype('uint8'))
+
+    def get_rgb_composite(self):
+        if self.rgb_composite is not None:
+            return self.rgb_composite
+        else:
+            self.make_rgb_composite()
+            return self.rgb_composite
+
+    def save_rgb_composite_enhanced(self, output_directory="../output/comp"):
+        if not os.path.exists(output_directory):
+            os.makedirs(output_directory)
+        filename = os.path.join(output_directory,f"rgb_composite_enhanced_{utils.get_number_from_image_name(self.file_names[0])}.png")
+        imageio.imwrite(filename, (255 * self.get_rgb_composite_enhanced()).astype('uint8'))
+
+    def get_rgb_composite_enhanced(self):
+        if self.rgb_composite_enhanced is not None:
+            return self.rgb_composite_enhanced
+        else:
+            self.make_rgb_enhancement()
+            return self.rgb_composite_enhanced
+
+    def make_rgb_enhancement(self):
+        if self.rgb_composite is None:
+            self.make_rgb_composite()
+
+        rgb_composite = np.copy(self.get_rgb_composite())
+        gaussian_rgb = cv2.GaussianBlur(rgb_composite, (9, 9), 10.0)
+        gaussian_rgb[gaussian_rgb < 0] = 0
+        gaussian_rgb[gaussian_rgb > 1] = 1
+        unsharp_rgb = cv2.addWeighted(rgb_composite, 1.5, gaussian_rgb, -0.5, 0)
+        unsharp_rgb[unsharp_rgb < 0] = 0
+        unsharp_rgb[unsharp_rgb > 1] = 1
+        # Apply a gamma correction to make the render appear closer to what our eyes would see
+        gamma = 1.4
+        gamma_corr_rgb = unsharp_rgb ** (1.0 / gamma)
+        self.rgb_composite_enhanced = gamma_corr_rgb

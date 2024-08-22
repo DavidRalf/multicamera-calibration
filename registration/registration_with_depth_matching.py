@@ -5,9 +5,9 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-import imageprocessing.micasense.capture as capture
-import utils as utils
-from src.micasense.registered_micasense import RegisteredMicasense
+import micasense.capture as capture
+import src.utils as utils
+from micasense.registered_micasense import RegisteredMicasense
 
 
 def pixel_to_3d(cam_positions, depth, intrinsic):
@@ -31,7 +31,7 @@ def project_3d_to_2d(new_3d_position, intrinsic, extrinsic):
     return np.round(x).astype(np.int32), np.round(y).astype(np.int32)
 
 
-def register_image_with_depth(thecapture, depth_map, micasense_calib, basler_cameraMatrix, image_names):
+def register(thecapture, depth_map, micasense_calib, basler_cameraMatrix, image_names):
     if thecapture.dls_present():
         # reflectance
         irradiance_list = thecapture.dls_irradiance() + [0]
@@ -104,7 +104,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Registration of the micasense images with depth information.')
     parser.add_argument('depth_path', type=str, help='Path to the directory containing depth information.')
     parser.add_argument('micasense_path', type=str, help='Path to the directory containing Micasense images')
-    parser.add_argument('--output', type=str, nargs='?', default="output/depth_matching", help='Path to save images')
+    parser.add_argument('--output', type=str, nargs='?', default="../output/depth_matching", help='Path to save images')
     parser.add_argument('--image_number', type=str, nargs='?', default=None,
                         help='Image number based on the basler numbers with leading zeros (e.g., 000001)')
     parser.add_argument('--basler_size', type=tuple, nargs='?', default=(5328, 4608),
@@ -130,8 +130,8 @@ if __name__ == "__main__":
         print(f"Warning: Expected at least 6 images, but found {len(image_names)}. Please check the image files.")
         sys.exit()
 
-    micasense_calib = utils.read_micasense_calib("calib/micasense_calib.yaml")
-    cal_samson_1 = utils.read_basler_calib("calib/SAMSON1_SAMSON2_stereo.yaml")
+    micasense_calib = utils.read_micasense_calib("../calib/micasense_calib.yaml")
+    cal_samson_1 = utils.read_basler_calib("../calib/SAMSON1_SAMSON2_stereo.yaml")
     K_L, D_L, P_L, _ = cal_samson_1
 
     for i in range(0, len(image_names), 6):
@@ -152,10 +152,11 @@ if __name__ == "__main__":
 
         file_names = utils.extract_all_image_names(batch)
 
-        registered_bands = register_image_with_depth(thecapture, depth_map_resized, micasense_calib, P_L, file_names)
+        registered_bands = register(thecapture, depth_map_resized, micasense_calib, P_L, file_names)
         registered_bands.save_images(output)
 
         registered_bands = None
         depth_map_resized = None
         thecapture = None
         print("finished a set")
+

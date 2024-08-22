@@ -5,8 +5,8 @@ import cv2
 import numpy as np
 import yaml
 
-import imageprocessing.micasense.image as image
-import utils as utils
+import micasense.image as image
+import src.utils as utils
 
 
 def detect_charuco_marker(image_paths):

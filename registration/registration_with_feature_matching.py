@@ -9,12 +9,12 @@ import numpy as np
 import skimage
 from skimage.transform import ProjectiveTransform
 
-import imageprocessing.micasense.capture as capture
-import utils as utils
-from src.micasense.registered_micasense import RegisteredMicasense
+import micasense.capture as capture
+import src.utils as utils
+from micasense.registered_micasense import RegisteredMicasense
 
 
-def register_image_with_feature_matching(thecapture, batch, version, save_warp_matrices, names, regenerate=True):
+def register(thecapture, batch, version, save_warp_matrices, names, regenerate=True):
     cam_serial = thecapture.camera_serial
     warp_matrices_filename = 'output/warp/' + cam_serial + "_warp_matrices_SIFT.npy"
     if Path(warp_matrices_filename).is_file() and not regenerate:
@@ -76,7 +76,7 @@ if __name__ == "__main__":
     parser.add_argument('image_path', type=str, help='Path to the directory containing images')
     parser.add_argument('save_warp_matrices', type=str, help='True or False for saving warp matrices')
     parser.add_argument('version', type=str, help='Stack or Upsampled')
-    parser.add_argument('output', type=str, nargs='?', default="output/feature_matching", help='Path to save images')
+    parser.add_argument('output', type=str, nargs='?', default="../output/feature_matching", help='Path to save images')
     parser.add_argument('image_number', type=str, nargs='?', default=None,
                         help='Image number with leading zeros (e.g., 0059)')
 
@@ -109,6 +109,6 @@ if __name__ == "__main__":
 
         thecapture = capture.Capture.from_filelist(batch)
         file_names = utils.extract_all_image_names(batch)
-        registered_images = register_image_with_feature_matching(thecapture, batch, version, save_warp_matrices,
-                                                                 file_names)
+        registered_images = register(thecapture, batch, version, save_warp_matrices,
+                                     file_names)
         registered_images.save_images(output)
