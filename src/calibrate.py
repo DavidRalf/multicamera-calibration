@@ -266,7 +266,7 @@ def calibrate_micasense(micasense_path, basler1_path, image_number):
 
         K_M, D_M = calibrate_intrinsic(band_images)
 
-        micasense_image_number = utils.get_micasense_number(image_number)
+        micasense_image_number = utils.get_micasense_number_from_basler_number(image_number)
 
         img_M = image.Image(f"{micasense_path}/IMG_{micasense_image_number}_{i}.tif").raw()
         img_B = cv2.imread(f"{basler1_path}/{image_number}.png")
@@ -297,9 +297,6 @@ def parse_args():
     parser.add_argument('calculate_micasense_new', type=utils.str_to_bool, nargs='?', default='true',
                         help='Recalculate Micasense calibration (true/false, default: true)')
     return parser.parse_args()
-
-
-
 
 
 if __name__ == "__main__":
