@@ -211,4 +211,11 @@ def check_stereo_yaml_files(directory_path):
     missing_files = [f for f in required_files if not (path / f).is_file()]
     return not missing_files
 
+def get_micasense_number(image_number):
+    return f"{int(image_number) - 1:0{len(image_number)}d}"[2:]
+
+def validate_directory(path, name):
+    if not path.is_dir():
+        raise ValueError(f"The provided {name} path '{path}' is not a valid directory.")
+
 

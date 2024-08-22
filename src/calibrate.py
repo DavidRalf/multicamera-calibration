@@ -266,7 +266,7 @@ def calibrate_micasense(micasense_path, basler1_path, image_number):
 
         K_M, D_M = calibrate_intrinsic(band_images)
 
-        micasense_image_number = f"{int(image_number) - 1:0{len(image_number)}d}"[2:]
+        micasense_image_number = utils.get_micasense_number(image_number)
 
         img_M = image.Image(f"{micasense_path}/IMG_{micasense_image_number}_{i}.tif").raw()
         img_B = cv2.imread(f"{basler1_path}/{image_number}.png")
@@ -299,9 +299,7 @@ def parse_args():
     return parser.parse_args()
 
 
-def validate_directory(path, name):
-    if not path.is_dir():
-        raise ValueError(f"The provided {name} path '{path}' is not a valid directory.")
+
 
 
 if __name__ == "__main__":
@@ -311,9 +309,9 @@ if __name__ == "__main__":
     basler1_path = Path(args.basler1_path)
     basler2_path = Path(args.basler2_path)
 
-    validate_directory(micasense_path, "Micasense")
-    validate_directory(basler1_path, "Basler1")
-    validate_directory(basler2_path, "Basler2")
+    utils.validate_directory(micasense_path, "Micasense")
+    utils.validate_directory(basler1_path, "Basler1")
+    utils.validate_directory(basler2_path, "Basler2")
 
     files_exist = utils.check_stereo_yaml_files("calib")
 
