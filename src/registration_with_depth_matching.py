@@ -78,7 +78,7 @@ def register_image_with_depth(thecapture, depth_map, micasense_calib, basler_cam
 
         registered_band[y_positions, x_positions] = values
         registered_bands.append(registered_band)
-
+    print("finished registration")
     return RegisteredMicasense(registered_bands, image_names)
 
 
@@ -158,3 +158,4 @@ if __name__ == "__main__":
         registered_bands = None
         depth_map_resized = None
         thecapture = None
+        print("finished a set")
