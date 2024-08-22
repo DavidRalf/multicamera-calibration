@@ -12,37 +12,39 @@ from skimage.transform import warp, matrix_transform, resize, FundamentalMatrixT
     ProjectiveTransform
 
 
+def normalize_image(image):
+    """Normalize the image to the range [0, 1] for saving."""
+    min_val = np.min(image)
+    max_val = np.max(image)
+    # Avoid division by zero
+    if max_val > min_val:
+        normalized_image = (image - min_val) / (max_val - min_val)
+    else:
+        normalized_image = image * 0  # All values are the same, return a zero array
+    return normalized_image
+
+
 def extract_image_name(file_path):
-    """
-    Extracts the image name from a file path.
-
-    Parameters:
-        file_path (str): The file path from which to extract the image name.
-
-    Returns:
-        str: The extracted image name (e.g., 'IMG_42', 'IMG_00042', etc.) or None if not found.
-    """
     # Extract the filename without extension
     file_name_with_extension = os.path.basename(file_path)
     file_name_without_extension = os.path.splitext(file_name_with_extension)[0]
 
-    # Use regex to find the pattern "IMG_" followed by any number of digits
-    match = re.search(r'(IMG_\d+)', file_name_without_extension)
+    # Use regex to find the pattern "IMG_" followed by digits and optionally more segments
+    match = re.search(r'(IMG_\d+(_\d+)?)', file_name_without_extension)
     if match:
-        return match.group(1)  # Return the matched pattern (e.g., 'IMG_42', 'IMG_00042', 'IMG_00000042')
+        return match.group(1)  # Return the matched pattern
     else:
         return None  # Return None if no match is found
 
+def extract_all_image_names(file_paths):
+    image_names = []
+    for file_path in file_paths:
+        name = extract_image_name(file_path)
+        if name is not None:
+            image_names.append(name)  # Only add if a name is found
+    return image_names
 
 def make_rgb_composite_from_original(thecapture, irradiance_list, output_png_path):
-    """
-    Creates an RGB composite image from a Capture object using undistorted reflectance images.
-
-    Parameters:
-        thecapture (Capture): A Capture object containing the image data.
-        irradiance_list (list): List of irradiance values corresponding to EO images.
-        output_png_path (str): Output file path for the saved RGB composite image.
-    """
     # Compute undistorted reflectance images
     undistorted_images = thecapture.undistorted_reflectance(irradiance_list)
 
