@@ -14,7 +14,7 @@ import utils as utils
 from src.micasense.registered_micasense import RegisteredMicasense
 
 
-def register_image_with_feature_matching(thecapture, batch, version, save_warp_matrices, regenerate=True):
+def register_image_with_feature_matching(thecapture, batch, version, save_warp_matrices, names, regenerate=True):
     cam_serial = thecapture.camera_serial
     warp_matrices_filename = 'output/warp/' + cam_serial + "_warp_matrices_SIFT.npy"
     if Path(warp_matrices_filename).is_file() and not regenerate:
@@ -31,7 +31,6 @@ def register_image_with_feature_matching(thecapture, batch, version, save_warp_m
         print("No existing warp matrices found. Create them later.")
         warp_matrices_SIFT = False
 
-    file_names = utils.extract_all_image_names(batch)
     thecapture = capture.Capture.from_filelist(batch)
 
     if thecapture.dls_present():
@@ -64,10 +63,10 @@ def register_image_with_feature_matching(thecapture, batch, version, save_warp_m
         print("Saved to", Path(warp_matrices_filename).resolve())
 
     if version == "stack":
-        registered_images = RegisteredMicasense(sharpened_stack, file_names)
+        registered_images = RegisteredMicasense(sharpened_stack, names)
 
     else:
-        registered_images = RegisteredMicasense(upsampled, file_names)
+        registered_images = RegisteredMicasense(upsampled, names)
 
     return registered_images
 
@@ -107,6 +106,9 @@ if __name__ == "__main__":
             print(f"Skipping incomplete batch: {batch}. Not enough images.")
             continue
         print(f"Processing batch: {batch}")
+
         thecapture = capture.Capture.from_filelist(batch)
-        registered_images = register_image_with_feature_matching(thecapture, batch, version, save_warp_matrices)
+        file_names = utils.extract_all_image_names(batch)
+        registered_images = register_image_with_feature_matching(thecapture, batch, version, save_warp_matrices,
+                                                                 file_names)
         registered_images.save_images(output)
