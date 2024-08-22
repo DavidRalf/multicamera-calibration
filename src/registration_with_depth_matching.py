@@ -58,10 +58,11 @@ def register_image_with_depth(thecapture, depth_map, micasense_calib, basler_cam
         micasense_extrinsic[:3, 3] = t.flatten()
         micasense_extrinsic[3, 3] = 1
 
+        micasense_intrinsic = np.array(band_data['cameraMatrix'])
+
         cam_positions = np.stack(np.meshgrid(np.arange(width), np.arange(height)), axis=-1)
         new_3d_position = pixel_to_3d(cam_positions, depth_map, basler_cameraMatrix)
 
-        micasense_intrinsic = np.array(band_data['cameraMatrix'])
         new_x, new_y = project_3d_to_2d(new_3d_position, micasense_intrinsic, micasense_extrinsic)
 
         within_image_x = np.logical_and(np.greater_equal(new_x, 0), np.less(new_x, image.shape[1]))
