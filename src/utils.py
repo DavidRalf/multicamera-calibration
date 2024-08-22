@@ -1,15 +1,11 @@
-import cv2
-import numpy
-import skimage
-from pathlib import Path
 import os
 import re
-import numpy as np
+from pathlib import Path
+
+import cv2
 import matplotlib.pyplot as plt
+import numpy as np
 import yaml
-import imageprocessing.micasense.imageutils as imageutils
-from skimage.transform import warp, matrix_transform, resize, FundamentalMatrixTransform, estimate_transform, \
-    ProjectiveTransform
 
 
 def normalize_image(image):
@@ -24,6 +20,16 @@ def normalize_image(image):
     return normalized_image
 
 
+def get_number_from_image_name(image_path):
+    """Extracts the number from an image file name."""
+    # Use a regular expression to find the number in the pattern IMG_XXXX where X is a digit
+    match = re.search(r'IMG_(\d{4})_\d', image_path)
+    if match:
+        return match.group(1)
+    else:
+        raise ValueError("The image name does not contain a valid number pattern.")
+
+
 def extract_image_name(file_path):
     # Extract the filename without extension
     file_name_with_extension = os.path.basename(file_path)
@@ -36,6 +42,7 @@ def extract_image_name(file_path):
     else:
         return None  # Return None if no match is found
 
+
 def extract_all_image_names(file_paths):
     image_names = []
     for file_path in file_paths:
@@ -43,6 +50,7 @@ def extract_all_image_names(file_paths):
         if name is not None:
             image_names.append(name)  # Only add if a name is found
     return image_names
+
 
 def make_rgb_composite_from_original(thecapture, irradiance_list, output_png_path):
     # Compute undistorted reflectance images
@@ -162,6 +170,7 @@ def undistort(img, K, D, R=None, P=None):
     )
     return undistorted_img
 
+
 def draw_lines(img1, img2, lines, pts1, pts2):
     """img1 - image on which we draw the epilines for the points in img2 lines - corresponding epilines"""
     r, c, _ = img1.shape
@@ -178,7 +187,6 @@ def draw_lines(img1, img2, lines, pts1, pts2):
         img1 = cv2.circle(img1, p1, 5, color, -1)
         img2 = cv2.circle(img2, p2, 5, color, -1)
     return img1, img2
-
 
 
 def str_to_bool(value):
@@ -205,17 +213,28 @@ def write_calib(filename, K, D, R, P):
         )
     print("wrote:", filename)
 
+
 def check_stereo_yaml_files(directory_path):
     path = Path(directory_path)
     required_files = ["SAMSON1_SAMSON2_stereo.yaml", "SAMSON2_SAMSON1_stereo.yaml"]
     missing_files = [f for f in required_files if not (path / f).is_file()]
     return not missing_files
 
-def get_micasense_number(image_number):
+
+def get_micasense_number_from_basler_number(image_number):
     return f"{int(image_number) - 1:0{len(image_number)}d}"[2:]
+
 
 def validate_directory(path, name):
     if not path.is_dir():
         raise ValueError(f"The provided {name} path '{path}' is not a valid directory.")
 
 
+def find_depth_map_file(directory, number):
+    pattern = re.compile(r'(\d+)_rect\.npy$')
+    for filename in os.listdir(directory):
+        if pattern.match(filename):
+            file_number = pattern.match(filename).group(1)
+            if int(file_number) == number:
+                return os.path.join(directory, filename)
+    return None
