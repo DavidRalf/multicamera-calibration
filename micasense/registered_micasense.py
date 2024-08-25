@@ -128,7 +128,7 @@ class RegisteredMicasense:
         band_name = band_name.lower()
         canonical_name = self.BAND_ALIASES.get(band_name, band_name)
         for index, name in self.BAND_NAMES.items():
-            if name.lower() == canonical_name:
+            if name == canonical_name:
                 return index
         raise ValueError(f"Band name '{band_name}' is not recognized.")
 
@@ -148,7 +148,7 @@ class RegisteredMicasense:
         canonical_name = self.BAND_ALIASES.get(band_name, band_name)
 
         for index, name in self.BAND_NAMES.items():
-            if name.lower() == canonical_name:
+            if name == canonical_name:
                 return self.get_image(index)
 
         raise ValueError(f"Band name '{band_name}' is not recognized.")
@@ -185,11 +185,11 @@ class RegisteredMicasense:
             out_band.FlushCache()
             out_dataset = None  # Close the dataset
 
-    def get_rgb_indices(self):
+    def _get_rgb_indices(self):
         return [2, 1, 0]
 
     def _make_rgb_composite(self, crop_image):
-        rgb_band_indices = self.get_rgb_indices()
+        rgb_band_indices = self._get_rgb_indices()
 
         band_red = self.get_image(rgb_band_indices[0])
         band_green = self.get_image(rgb_band_indices[1])
@@ -231,18 +231,18 @@ class RegisteredMicasense:
         else:
             self.rgb_composite_enhanced = gamma_corr_rgb
 
-    def save_rgb_composite(self, crop=False, enhanced=False, output_directory="../output/comp"):
+    def save_rgb_normalized(self, crop=False, enhanced=False, output_directory="../output/comp"):
         if not os.path.exists(output_directory):
             os.makedirs(output_directory)
 
         file_name = os.path.join(
             output_directory,
-            f"rgb_composite{'_enhanced' if enhanced else ''}{'_crop' if crop else ''}_{utils.get_number_from_image_name(self.file_names[0])}.png"
+            f"rgb_true_color{'_enhanced' if enhanced else ''}{'_crop' if crop else ''}_{utils.get_number_from_image_name(self.file_names[0])}.png"
         )
 
-        imageio.imwrite(file_name, (255 * self.get_rgb_composite(crop, enhanced)).astype('uint8'))
+        imageio.imwrite(file_name, (255 * self.get_rgb_normalized(crop, enhanced)).astype('uint8'))
 
-    def get_rgb_composite(self, crop=False, enhanced=False):
+    def get_rgb_normalized(self, crop=False, enhanced=False):
         if crop:
             return self._get_rgb_composite_crop() if not enhanced else self._get_rgb_composite_enhanced_crop()
         else:
@@ -267,3 +267,30 @@ class RegisteredMicasense:
         if self.rgb_composite_enhanced_crop is None:
             self._make_rgb_enhancement(True)
         return self.rgb_composite_enhanced_crop
+
+    def get_ndvi(self, cropping=False):
+        stack = self.get_stack(cropping)
+        nir_band = self.get_band_index("nir")
+        red_band = self.get_band_index("red")
+        ndvi = (stack[:, :, nir_band] - stack[:, :, red_band]) / (
+                stack[:, :, nir_band] + stack[:, :, red_band])
+        return ndvi
+
+    def get_ndre(self, cropping=False):
+        stack = self.get_stack(cropping)
+        nir_band = self.get_band_index("nir")
+        rededge_band = self.get_band_index("red edge")
+        ndre = (stack[:, :, nir_band] - stack[:, :, rededge_band]) / (
+                stack[:, :, nir_band] + stack[:, :, rededge_band])
+        return ndre
+
+    def get_cir_normalized(self, cropping=False):
+        stack = self.get_stack(cropping)
+        nir_band = self.get_band_index("nir")
+        red_band = self.get_band_index("red")
+        green_band = self.get_band_index("green")
+        cir = np.zeros((stack.shape[0], stack.shape[1], 3), dtype=np.float32)
+        cir[:, :, 0] = imageutils.normalize(stack[:, :, nir_band])
+        cir[:, :, 1] = imageutils.normalize(stack[:, :, red_band])
+        cir[:, :, 2] = imageutils.normalize(stack[:, :, green_band])
+        return cir
