@@ -53,12 +53,20 @@ class RegisteredMicasense:
         4: 'Red Edge',
         5: 'Panchro'
     }
+    BAND_ALIASES = {
+        'b': 'Blue', 'blue': 'Blue',
+        'g': 'Green', 'green': 'Green',
+        'r': 'Red', 'red': 'Red',
+        'nir': 'NIR',
+        're': 'Red Edge', 'red edge': 'Red Edge',
+        'p': 'Panchro', 'pan': 'Panchro', 'panchro': 'Panchro'
+    }
 
     def __init__(self, images, file_names=None):
         self.rgb_composite_crop = None
         self.rgb_composite_enhanced_crop = None
         self.images = []
-        self.load_images(images)
+        self._load_images(images)
         self.file_names = file_names if file_names is not None else []
 
         self.rgb_composite = None
@@ -69,8 +77,9 @@ class RegisteredMicasense:
     def __repr__(self):
         return f'RegisteredMicasense with {len(self.images)} images.'
 
-    def load_images(self, images):
+    def _load_images(self, images):
         if isinstance(images, np.ndarray) and images.ndim == 3:
+
             self._load_from_3d_array(images)
         elif isinstance(images, list):
             self._load_from_list(images)
@@ -93,7 +102,6 @@ class RegisteredMicasense:
             raise ValueError("List must contain either image paths (str) or 2D numpy arrays (ndarray).")
 
     def _load_image(self, path):
-
         dataset = gdal.Open(path, gdal.GA_ReadOnly)
         if dataset is None:
             raise FileNotFoundError(f"Image at path '{path}' could not be loaded. Check the file path.")
@@ -103,20 +111,46 @@ class RegisteredMicasense:
         return image_data
 
     def get_image(self, index):
+        if isinstance(index, str):
+            return self._get_image_by_band_name(index)
 
-        if index < 0 or index >= len(self.images):
-            raise IndexError("Index out of bounds.")
-        return self.images[index]
+        return self._get_image_by_index(index)
+
+    def get_stack(self, cropping=False, images=None):
+        if images is None:
+            images = list(range(len(self.images)))
+        stack = [self.get_image(img) for img in images]
+        image_stack = np.stack(stack, axis=-1)
+
+        return crop(image_stack) if cropping else image_stack
+
+    def get_band_index(self, band_name):
+        band_name = band_name.lower()
+        canonical_name = self.BAND_ALIASES.get(band_name, band_name)
+        for index, name in self.BAND_NAMES.items():
+            if name.lower() == canonical_name:
+                return index
+        raise ValueError(f"Band name '{band_name}' is not recognized.")
 
     def get_band_name(self, index):
         if index not in self.BAND_NAMES:
             raise IndexError("Index out of bounds for band names.")
         return self.BAND_NAMES[index]
 
-    def get_image_by_band_name(self, band_name):
+    def _get_image_by_index(self, index):
+        if not (0 <= index < len(self.images)):
+            raise IndexError("Index out of bounds.")
+        return self.images[index]
+
+    def _get_image_by_band_name(self, band_name):
+        band_name = band_name.lower()
+
+        canonical_name = self.BAND_ALIASES.get(band_name, band_name)
+
         for index, name in self.BAND_NAMES.items():
-            if name.lower() == band_name.lower():
+            if name.lower() == canonical_name:
                 return self.get_image(index)
+
         raise ValueError(f"Band name '{band_name}' is not recognized.")
 
     def get_file_name_by_index(self, index):
@@ -154,7 +188,7 @@ class RegisteredMicasense:
     def get_rgb_indices(self):
         return [2, 1, 0]
 
-    def make_rgb_composite(self, crop_image):
+    def _make_rgb_composite(self, crop_image):
         rgb_band_indices = self.get_rgb_indices()
 
         band_red = self.get_image(rgb_band_indices[0])
@@ -175,11 +209,11 @@ class RegisteredMicasense:
         else:
             self.rgb_composite = im_display
 
-    def make_rgb_enhancement(self, crop):
+    def _make_rgb_enhancement(self, crop):
         if crop and self.rgb_composite_crop is None:
-            self.make_rgb_composite(crop)
+            self._make_rgb_composite(crop)
         elif not crop and self.rgb_composite is None:
-            self.make_rgb_composite(crop)
+            self._make_rgb_composite(crop)
 
         rgb_composite = self.rgb_composite_crop if crop else self.rgb_composite
 
@@ -201,7 +235,6 @@ class RegisteredMicasense:
         if not os.path.exists(output_directory):
             os.makedirs(output_directory)
 
-            # Build the filename based on crop and enhancement flags
         file_name = os.path.join(
             output_directory,
             f"rgb_composite{'_enhanced' if enhanced else ''}{'_crop' if crop else ''}_{utils.get_number_from_image_name(self.file_names[0])}.png"
@@ -217,20 +250,20 @@ class RegisteredMicasense:
 
     def _get_rgb_composite(self):
         if self.rgb_composite is None:
-            self.make_rgb_composite(False)
+            self._make_rgb_composite(False)
         return self.rgb_composite
 
     def _get_rgb_composite_crop(self):
         if self.rgb_composite_crop is None:
-            self.make_rgb_composite(True)
+            self._make_rgb_composite(True)
         return self.rgb_composite_crop
 
     def _get_rgb_composite_enhanced(self):
         if self.rgb_composite_enhanced is None:
-            self.make_rgb_enhancement(False)
+            self._make_rgb_enhancement(False)
         return self.rgb_composite_enhanced
 
     def _get_rgb_composite_enhanced_crop(self):
         if self.rgb_composite_enhanced_crop is None:
-            self.make_rgb_enhancement(True)
+            self._make_rgb_enhancement(True)
         return self.rgb_composite_enhanced_crop
