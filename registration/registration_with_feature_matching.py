@@ -14,7 +14,7 @@ import src.utils as utils
 from micasense.registered_micasense import RegisteredMicasense
 
 
-def register(thecapture, batch, version, save_warp_matrices, names, regenerate=True):
+def register(thecapture, version, save_warp_matrices, names, regenerate=True):
     cam_serial = thecapture.camera_serial
     warp_matrices_filename = 'output/warp/' + cam_serial + "_warp_matrices_SIFT.npy"
     if Path(warp_matrices_filename).is_file() and not regenerate:
@@ -31,7 +31,7 @@ def register(thecapture, batch, version, save_warp_matrices, names, regenerate=T
         print("No existing warp matrices found. Create them later.")
         warp_matrices_SIFT = False
 
-    thecapture = capture.Capture.from_filelist(batch)
+    #thecapture = capture.Capture.from_filelist(batch)
 
     if thecapture.dls_present():
         img_type = 'reflectance'
@@ -58,7 +58,7 @@ def register(thecapture, batch, version, save_warp_matrices, names, regenerate=T
             if isinstance(x, skimage.transform._geometric.ProjectiveTransform):
                 temp_matrices.append(x.params)
         # Create the directory if it does not exist
-        os.makedirs("output/warp", exist_ok=True)
+        os.makedirs("../output/warp", exist_ok=True)
         np.save(warp_matrices_filename, np.array(temp_matrices, dtype=object), allow_pickle=True)
         print("Saved to", Path(warp_matrices_filename).resolve())
 
@@ -109,6 +109,6 @@ if __name__ == "__main__":
 
         thecapture = capture.Capture.from_filelist(batch)
         file_names = utils.extract_all_image_names(batch)
-        registered_images = register(thecapture, batch, version, save_warp_matrices,
+        registered_images = register(thecapture, version, save_warp_matrices,
                                      file_names)
         registered_images.save_images(output)
