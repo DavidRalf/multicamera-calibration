@@ -5,7 +5,7 @@ from pathlib import Path
 import src.utils as utils
 from evaluation import eval_utils
 from registration.registration_with_feature_matching import register
-
+from evaluation.eval_utils import get_patches
 
 def parse_arguments():
     """Parse command line arguments."""
@@ -52,12 +52,13 @@ def main():
         stack = registered_bands.get_stack(True)
         eval_utils.save_stack_to_disk(stack,output_dir,batch_name)
         band_names = [registered_bands.get_band_name(i) for i in range(stack.shape[2])]
-
-        eval_utils.store_metrics(metrics, batch_name, stack, band_names, patch_size)
-    # Calculate statistics for metrics
+        batch_patches = get_patches(stack, patch_size)
+        eval_utils.store_metrics(metrics, batch_name, batch_patches, band_names)
+        # Calculate statistics for metrics
+    metrics = eval_utils.transform_metric(metrics)
     statistics = eval_utils.calculate_statistics(metrics)
     # Save metrics and statistics
-    eval_utils.save_results_to_json(metrics, statistics, output_dir)
+    eval_utils.save_results_to_json(statistics, output_dir)
     eval_utils.save_results_to_pdf(statistics, output_dir)
     timestamp2 = time.time()
     print("This took %.2f seconds" % (timestamp2 - timestamp1))
