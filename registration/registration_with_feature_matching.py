@@ -16,7 +16,7 @@ from micasense.registered_micasense import RegisteredMicasense
 
 def register(thecapture, version, save_warp_matrices, names, regenerate=True):
     cam_serial = thecapture.camera_serial
-    warp_matrices_filename = 'output/warp/' + cam_serial + "_warp_matrices_SIFT.npy"
+    warp_matrices_filename = '../output/warp/' + cam_serial + "_warp_matrices_SIFT.npy"
     if Path(warp_matrices_filename).is_file() and not regenerate:
         print("Found existing warp matrices for camera", cam_serial)
         load_warp_matrices = np.load(warp_matrices_filename, allow_pickle=True)
