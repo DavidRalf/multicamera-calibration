@@ -31,8 +31,6 @@ def register(thecapture, version, save_warp_matrices, names, regenerate=True):
         print("No existing warp matrices found. Create them later.")
         warp_matrices_SIFT = False
 
-    #thecapture = capture.Capture.from_filelist(batch)
-
     if thecapture.dls_present():
         img_type = 'reflectance'
         irradiance_list = thecapture.dls_irradiance() + [0]
@@ -57,7 +55,7 @@ def register(thecapture, version, save_warp_matrices, names, regenerate=True):
                 temp_matrices.append(x)
             if isinstance(x, skimage.transform._geometric.ProjectiveTransform):
                 temp_matrices.append(x.params)
-        # Create the directory if it does not exist
+
         os.makedirs("../output/warp", exist_ok=True)
         np.save(warp_matrices_filename, np.array(temp_matrices, dtype=object), allow_pickle=True)
         print("Saved to", Path(warp_matrices_filename).resolve())
@@ -82,7 +80,6 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    # Access the arguments
     image_path = Path(args.image_path)
     image_number = args.image_number
     version = args.version.lower()
@@ -91,11 +88,9 @@ if __name__ == "__main__":
     if image_number is None:
         image_number = "*"
 
-    # Collect image names that match the pattern
     image_names = list(image_path.glob(f'IMG_{image_number}_*.tif'))
     image_names = sorted([x.as_posix() for x in image_names])
 
-    # Check if we have enough pictures
     if len(image_names) < 6:
         print(f"Warning: Expected at least 6 images, but found {len(image_names)}. Please check the image files.")
         sys.exit()

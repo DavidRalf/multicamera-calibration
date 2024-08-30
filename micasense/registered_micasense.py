@@ -9,7 +9,7 @@ import src.utils as utils
 from micasense import imageutils
 
 
-def crop(image_stack):
+def crop(image_stack,eval=False):
     non_black_mask = np.all(image_stack > 0, axis=-1)
 
     valid_coords = np.argwhere(non_black_mask)
@@ -28,16 +28,19 @@ def crop(image_stack):
 
     top_left_row = np.argmax(non_zero_counts_rows >= row_threshold)
     top_left_col = np.argmax(non_zero_counts_cols >= col_threshold)
-    top_left = (top_left_row, top_left_col)
+    top_left_final = (top_left_row, top_left_col)
 
     bottom_right_row = height - np.argmax(
         non_zero_counts_rows[::-1] >= row_threshold)
     bottom_right_col = width - np.argmax(
         non_zero_counts_cols[::-1] >= col_threshold)
-    bottom_right = (bottom_right_row, bottom_right_col)
+    bottom_right_final = (bottom_right_row, bottom_right_col)
+    if eval:
 
+        final_cropped_image = cropped_image[top_left_final[0]:bottom_right_final[0], top_left_final[1]:bottom_right_final[1]]
+        return final_cropped_image, ((top_left,bottom_right),(top_left_final,bottom_right_final))
     if top_left is not None and bottom_right is not None:
-        final_cropped_image = cropped_image[top_left[0]:bottom_right[0], top_left[1]:bottom_right[1]]
+        final_cropped_image = cropped_image[top_left_final[0]:bottom_right_final[0], top_left_final[1]:bottom_right_final[1]]
         return final_cropped_image
     else:
         print("Error in cropping return original stack")

@@ -256,7 +256,7 @@ def save_results_to_pdf(statistics_method1, statistics_method2,path_method_1,pat
 
         story.append(combined_batch_stats_table)
         story.append(Spacer(1, 12))
-
+        story.append(Paragraph(f"Pair Statistics for {batch_name} across all Patches", custom_heading_style))
 
         # Define a limit for the number of rows per page
         rows_per_page = 5  # Adjust as necessary
