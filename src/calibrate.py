@@ -130,7 +130,6 @@ def normalCalib(objectPoints, allCorners, example_frame, calib_flags=0):
     cv2.imshow("frameRect", rect)
     return ncameraMatrix, ndistCoeffs
 
-
 def calibrate_extrinsic(img_L, img_R, intrinsic_L, intrinsic_R, calib_flags):
     checkerSize, markerSize, pw, ph, arucoDict = (
         0.06,
@@ -252,22 +251,20 @@ def calibrate_basler(basler1_path, basler2_path, image_number):
     R_L, R_R, P_L, P_R, Q, roi_L, roi_R = cv2.stereoRectify(K_1, D_1, K_2, D_2, image_size, R, T,
                                                             flags=cv2.CALIB_ZERO_DISPARITY)
 
-    utils.write_calib("calib/SAMSON1_SAMSON2_stereo.yaml", K_1, D_1, R_L, P_L)
-    utils.write_calib("calib/SAMSON2_SAMSON1_stereo.yaml", K_2, D_2, R_R, P_R)
+    utils.write_calib("../calib/SAMSON1_SAMSON2_stereo.yaml", K_1, D_1, R_L, P_L)
+    utils.write_calib("../calib/SAMSON2_SAMSON1_stereo.yaml", K_2, D_2, R_R, P_R)
 
 
 def calibrate_micasense(micasense_path, basler1_path, image_number):
     data = {}
-    cal_samson_1 = utils.read_basler_calib("calib/SAMSON1_SAMSON2_stereo.yaml")
+    cal_samson_1 = utils.read_basler_calib("../calib/SAMSON1_SAMSON2_stereo.yaml")
 
     for i in range(1, 7):
         band_images = list(micasense_path.glob(f'IMG_*_{i}.tif'))
         band_images = [str(img) for img in band_images]
-
-        K_M, D_M = calibrate_intrinsic(band_images)
-
         micasense_image_number = utils.get_micasense_number_from_basler_number(image_number)
 
+        K_M, D_M = calibrate_intrinsic(band_images)
         img_M = image.Image(f"{micasense_path}/IMG_{micasense_image_number}_{i}.tif").raw()
         img_B = cv2.imread(f"{basler1_path}/{image_number}.png")
 
@@ -282,7 +279,7 @@ def calibrate_micasense(micasense_path, basler1_path, image_number):
             'translation': T_B1_M.tolist(),
         }
 
-    with open("calib/micasense_calib.yaml", "w") as file:
+    with open("../calib/micasense_calib.yaml", "w") as file:
         yaml.safe_dump(data, file, default_flow_style=None)
 
 
@@ -291,7 +288,7 @@ def parse_args():
     parser.add_argument('micasense_path', type=str, help='Path to the Micasense calibration images')
     parser.add_argument('basler1_path', type=str, help='Path to the Basler (SAMSON1) calibration images')
     parser.add_argument('basler2_path', type=str, help='Path to the Basler (SAMSON2) calibration images')
-    parser.add_argument('image_number', type=str, help='Image number for extrinsics calibration (e.g., 0059)')
+    parser.add_argument('image_number', type=str, help='Image number for extrinsics calibration bases on basler numbers (e.g., 000002)')
     parser.add_argument('calculate_basler_new', type=utils.str_to_bool, nargs='?', default='false',
                         help='Recalculate Basler calibration (true/false, default: false)')
     parser.add_argument('calculate_micasense_new', type=utils.str_to_bool, nargs='?', default='true',
@@ -310,7 +307,7 @@ if __name__ == "__main__":
     utils.validate_directory(basler1_path, "Basler1")
     utils.validate_directory(basler2_path, "Basler2")
 
-    files_exist = utils.check_stereo_yaml_files("calib")
+    files_exist = utils.check_stereo_yaml_files("../calib")
 
     if args.calculate_basler_new or not files_exist:
         calibrate_basler(basler1_path, basler2_path, args.image_number)

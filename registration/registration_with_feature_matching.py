@@ -12,6 +12,7 @@ from skimage.transform import ProjectiveTransform
 import micasense.capture as capture
 import src.utils as utils
 from micasense.registered_micasense import RegisteredMicasense
+from registration.registration_with_depth_matching import set_intrinsic
 
 
 def register(thecapture, version, save_warp_matrices, names, regenerate=True):
@@ -94,6 +95,7 @@ if __name__ == "__main__":
     if len(image_names) < 6:
         print(f"Warning: Expected at least 6 images, but found {len(image_names)}. Please check the image files.")
         sys.exit()
+    micasense_calib = utils.read_micasense_calib("../calib/micasense_calib.yaml")
 
     for i in range(0, len(image_names), 6):
         batch = image_names[i:i + 6]
@@ -103,6 +105,7 @@ if __name__ == "__main__":
         print(f"Processing batch: {batch}")
 
         thecapture = capture.Capture.from_filelist(batch)
+        set_intrinsic(thecapture, micasense_calib)
         file_names = utils.extract_all_image_names(batch)
         registered_images = register(thecapture, version, save_warp_matrices,
                                      file_names)
