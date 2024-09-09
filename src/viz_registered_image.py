@@ -68,8 +68,8 @@ def main(image_number, path_to_registered_images):
     rgb_crop = registered_images.get_rgb_normalized(crop=True)
 
     # Get Color Infrared (CIR) normalized images
-    nir = registered_images.get_cir_normalized()
-    nir_crop = registered_images.get_cir_normalized(cropping=True)
+    cir = registered_images.get_cir_normalized()
+    cir_crop = registered_images.get_cir_normalized(cropping=True)
 
     # Calculate NDRE
     ndre = registered_images.get_ndre()
@@ -80,7 +80,7 @@ def main(image_number, path_to_registered_images):
     ndvi_crop = registered_images.get_ndvi(cropping=True)
 
     # Display the images
-    display_images(rgb, rgb_crop, nir, nir_crop, ndvi, ndvi_crop, ndre, ndre_crop)
+    display_images(rgb, rgb_crop, cir, cir_crop, ndvi, ndvi_crop, ndre, ndre_crop)
 
 
 if __name__ == "__main__":
