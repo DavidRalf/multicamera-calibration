@@ -159,4 +159,3 @@ if __name__ == "__main__":
         depth_map_resized = None
         thecapture = None
         print("finished a set")
-

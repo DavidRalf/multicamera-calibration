@@ -130,6 +130,7 @@ def normalCalib(objectPoints, allCorners, example_frame, calib_flags=0):
     cv2.imshow("frameRect", rect)
     return ncameraMatrix, ndistCoeffs
 
+
 def calibrate_extrinsic(img_L, img_R, intrinsic_L, intrinsic_R, calib_flags):
     checkerSize, markerSize, pw, ph, arucoDict = (
         0.06,
@@ -288,7 +289,8 @@ def parse_args():
     parser.add_argument('micasense_path', type=str, help='Path to the Micasense calibration images')
     parser.add_argument('basler1_path', type=str, help='Path to the Basler (SAMSON1) calibration images')
     parser.add_argument('basler2_path', type=str, help='Path to the Basler (SAMSON2) calibration images')
-    parser.add_argument('image_number', type=str, help='Image number for extrinsics calibration bases on basler numbers (e.g., 000002)')
+    parser.add_argument('image_number', type=str,
+                        help='Image number for extrinsics calibration bases on basler numbers (e.g., 000002)')
     parser.add_argument('calculate_basler_new', type=utils.str_to_bool, nargs='?', default='false',
                         help='Recalculate Basler calibration (true/false, default: false)')
     parser.add_argument('calculate_micasense_new', type=utils.str_to_bool, nargs='?', default='true',

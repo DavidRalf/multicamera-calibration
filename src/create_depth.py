@@ -1,14 +1,17 @@
+import argparse
+import os
+
 import cv2
 import numpy as np
 import yaml
-import argparse
-import os
+
 
 # Function to load YAML file with camera parameters
 def load_camera_params(yaml_file):
     with open(yaml_file, 'r') as file:
         data = yaml.safe_load(file)
     return data
+
 
 # Function to compute depth map
 def compute_depth_map(left_image_path, right_image_path, yaml_camera1, yaml_camera2, output_depth_path):
@@ -31,16 +34,16 @@ def compute_depth_map(left_image_path, right_image_path, yaml_camera1, yaml_came
 
     # Extract baseline from Camera 2's projection matrix
     projection_matrix_camera2 = camera2_params['projectionMatrix']
-    baseline = -projection_matrix_camera2[0][3]   # Extract baseline
+    baseline = -projection_matrix_camera2[0][3]  # Extract baseline
 
     # Create StereoSGBM object
     stereo = cv2.StereoSGBM_create(numDisparities=256, blockSize=7,
-                                    P1=8 * 3 * 7 ** 2,
-                                    P2=32 * 3 * 7 ** 2,
-                                    disp12MaxDiff=1,
-                                    uniquenessRatio=10,
-                                    speckleWindowSize=100,
-                                    speckleRange=32)
+                                   P1=8 * 3 * 7 ** 2,
+                                   P2=32 * 3 * 7 ** 2,
+                                   disp12MaxDiff=1,
+                                   uniquenessRatio=10,
+                                   speckleWindowSize=100,
+                                   speckleRange=32)
 
     disparity = stereo.compute(img_left, img_right).astype(np.float32)
 
@@ -90,6 +93,7 @@ def compute_depth_map(left_image_path, right_image_path, yaml_camera1, yaml_came
     cv2.resizeWindow('Colorized Depth Map', 800, 600)  # Set the window size
     cv2.waitKey(0)  # Wait indefinitely until a key is pressed
     cv2.destroyAllWindows()  # Close the window after a key press
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Compute depth map from stereo images.')

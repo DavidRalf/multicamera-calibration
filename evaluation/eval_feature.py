@@ -2,10 +2,12 @@ import argparse
 import json
 import time
 from pathlib import Path
+
 import src.utils as utils
 from evaluation import eval_utils
-from registration.registration_with_feature_matching import register
 from evaluation.eval_utils import get_patches
+from registration.registration_with_feature_matching import register
+
 
 def parse_arguments():
     """Parse command line arguments."""
@@ -21,7 +23,6 @@ def parse_arguments():
 
 def main():
     timestamp1 = time.time()
-    # Your code here
     # Parse arguments
     args = parse_arguments()
     micasense_path = Path(args.micasense_path)
@@ -43,14 +44,11 @@ def main():
 
     metrics = {}
     for batch_name, images in data.items():
-        thecapture,image_names=eval_utils.load_the_capture(images,micasense_calib,micasense_path)
-        # Register the bands
+        thecapture, image_names = eval_utils.load_the_capture(images, micasense_calib, micasense_path)
         file_names = utils.extract_all_image_names(image_names)
-        print("befor")
-        registered_bands = register(thecapture,"upsampled",True,file_names)
-        print("after")
+        registered_bands = register(thecapture, "upsampled", True, file_names)
         stack = registered_bands.get_stack(True)
-        eval_utils.save_stack_to_disk(stack,output_dir,batch_name)
+        eval_utils.save_stack_to_disk(stack, output_dir, batch_name)
         band_names = [registered_bands.get_band_name(i) for i in range(stack.shape[2])]
         batch_patches = get_patches(stack, patch_size)
         eval_utils.store_metrics(metrics, batch_name, batch_patches, band_names)
@@ -62,6 +60,7 @@ def main():
     eval_utils.save_results_to_pdf(statistics, output_dir)
     timestamp2 = time.time()
     print("This took %.2f seconds" % (timestamp2 - timestamp1))
+
 
 if __name__ == "__main__":
     main()

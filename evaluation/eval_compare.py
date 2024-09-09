@@ -1,14 +1,16 @@
 import argparse
-import os
 import json
+import os
+
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak,Image
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak, Image
+
 from evaluation import eval_utils
 
 
-def save_results_to_pdf(statistics_method1, statistics_method2,path_method_1,path_method_2, output_dir):
+def save_results_to_pdf(statistics_method1, statistics_method2, path_method_1, path_method_2, output_dir):
     # Create the PDF document
     pdf_file = os.path.join(output_dir, "comparison_report.pdf")
     doc = SimpleDocTemplate(pdf_file, pagesize=letter)
@@ -106,10 +108,12 @@ def save_results_to_pdf(statistics_method1, statistics_method2,path_method_1,pat
     for i in range(0, len(pairs_list), rows_per_page):
         # Prepare data for this chunk of pairs
         pairs_matrix_data_method1 = [
-            [Paragraph("Pairs", custom_normal_style)] + [Paragraph(metric.upper(), custom_normal_style) for metric in metrics]
+            [Paragraph("Pairs", custom_normal_style)] + [Paragraph(metric.upper(), custom_normal_style) for metric in
+                                                         metrics]
         ]
         pairs_matrix_data_method2 = [
-            [Paragraph("Pairs", custom_normal_style)] + [Paragraph(metric.upper(), custom_normal_style) for metric in metrics]
+            [Paragraph("Pairs", custom_normal_style)] + [Paragraph(metric.upper(), custom_normal_style) for metric in
+                                                         metrics]
         ]
 
         # Fill in the matrix for the current chunk
@@ -163,7 +167,8 @@ def save_results_to_pdf(statistics_method1, statistics_method2,path_method_1,pat
         # Display Method 1 Image
         # Create a table for images
         image_data = []
-        image_path_method1 = os.path.expanduser(os.path.join(path_method_1, f"{batch_name}_rgb_image.png"))  # Adjust the path as needed
+        image_path_method1 = os.path.expanduser(
+            os.path.join(path_method_1, f"{batch_name}_rgb_image.png"))  # Adjust the path as needed
         if os.path.exists(image_path_method1):
             img_method1 = Image(image_path_method1, width=300, height=200)  # Adjust size as needed
         else:
@@ -182,16 +187,16 @@ def save_results_to_pdf(statistics_method1, statistics_method2,path_method_1,pat
             # Append images and add spacing
         image_data.append([img_method1, " ", img_method2])  # Adding an empty string for spacing
 
-            # Create a table for the images
+        # Create a table for the images
         image_table = Table(image_data, colWidths=[300, 5, 300])  # 20 units for spacing
 
-            # Style the image table
+        # Style the image table
         image_table.setStyle(TableStyle([
-                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ]))
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ]))
 
-            # Add the image table to the story
+        # Add the image table to the story
         story.append(image_table)
         story.append(Spacer(1, 12))  # Space after each images table
         story.append(Paragraph(f"Overall Statistics for {batch_name} across all Pairs", custom_heading_style))
@@ -306,7 +311,8 @@ def save_results_to_pdf(statistics_method1, statistics_method2,path_method_1,pat
                 ]))
 
             # Create a combined table to hold both pairs matrices side by side
-            combined_pairs_matrix_batch = Table([[pairs_matrix_method1_batch, pairs_matrix_method2_batch]], colWidths=[300, 300])
+            combined_pairs_matrix_batch = Table([[pairs_matrix_method1_batch, pairs_matrix_method2_batch]],
+                                                colWidths=[300, 300])
 
             # Center the combined pairs matrix table
             combined_pairs_matrix_batch.setStyle(TableStyle([
@@ -321,15 +327,17 @@ def save_results_to_pdf(statistics_method1, statistics_method2,path_method_1,pat
             # Add a page break after each chunk
             story.append(PageBreak())
 
-# Build the PDF
+    # Build the PDF
     doc.build(story)
+
 
 if __name__ == "__main__":
     # Set up argument parsing
     parser = argparse.ArgumentParser(description="Generate a PDF report comparing two methods.")
     parser.add_argument('method1', type=str, help='Path to the evaluation results from Method 1')
     parser.add_argument('method2', type=str, help='Path to the evaluation results from Method 2')
-    parser.add_argument('output_dir', type=str, default="../output/eval/compare", help='Output directory for the PDF report')
+    parser.add_argument('output_dir', type=str, default="../output/eval/compare",
+                        help='Output directory for the PDF report')
 
     args = parser.parse_args()
     path_method_1 = args.method1
@@ -363,4 +371,4 @@ if __name__ == "__main__":
             method2_stats = json.load(file)  # Load statistics for Method 2
 
     # Save results to PDF
-    save_results_to_pdf(method1_stats, method2_stats,path_method_1, path_method_2,output_dir)
+    save_results_to_pdf(method1_stats, method2_stats, path_method_1, path_method_2, output_dir)

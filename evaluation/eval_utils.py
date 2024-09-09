@@ -65,7 +65,7 @@ def calculate_ssim_patches(image1, image2):
     patches2 = image2
 
     ssim_values = np.array([
-        ssim(p1, p2,data_range=1.0) for p1, p2 in zip(patches1, patches2)
+        ssim(p1, p2, data_range=1.0) for p1, p2 in zip(patches1, patches2)
     ])
 
     return ssim_values
@@ -195,7 +195,6 @@ def save_stack_to_disk(stack, output_dir, filename="stack.npy"):
     print(f"Stack saved to {file_path}")
 
 
-
 def save_results_to_pdf(statistics, output_dir):
     # Create the PDF document
     pdf_file = os.path.join(output_dir, "evaluation_report.pdf")
@@ -209,7 +208,6 @@ def save_results_to_pdf(statistics, output_dir):
 
     story = []
 
-
     story.append(Paragraph("SAMSON", styles['Title']))
     story.append(Spacer(1, 12))
     story.append(Paragraph("Micasense Registration Evaluation Report", styles['Title']))
@@ -217,9 +215,7 @@ def save_results_to_pdf(statistics, output_dir):
     story.append(Paragraph("Generated Report", custom_normal_style))
     story.append(Spacer(1, 48))
 
-
     story.append(Paragraph("Overall Statistics", custom_heading_style))
-
 
     overall_data = [
         [Paragraph("Metric", custom_normal_style),
@@ -271,7 +267,6 @@ def save_results_to_pdf(statistics, output_dir):
 
     pairs_matrix_col_widths = [80] + [50] * len(metrics)
 
-
     pairs_matrix = Table(pairs_matrix_data, colWidths=pairs_matrix_col_widths)
     pairs_matrix.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
@@ -286,7 +281,6 @@ def save_results_to_pdf(statistics, output_dir):
 
     story.append(PageBreak())
 
-
     for batch_name, batch_data in statistics["batches"].items():
         story.append(Paragraph(f"Statistics for {batch_name}", custom_heading_style))
 
@@ -296,7 +290,6 @@ def save_results_to_pdf(statistics, output_dir):
             continue
 
         stack = np.load(stack_file)
-
 
         if not display_rgb_image(stack, story, styles, output_dir, batch_name):
             print(f"Error displaying image for batch {batch_name}. Skipping.")
@@ -308,7 +301,6 @@ def save_results_to_pdf(statistics, output_dir):
              Paragraph("Std Dev", custom_normal_style)]
         ]
 
-
         for metric in ['ncc', 'ssim', 'mi']:
             stats = batch_data[metric]
             batch_stats_data.append([
@@ -318,7 +310,6 @@ def save_results_to_pdf(statistics, output_dir):
                 Paragraph(f"{stats['std']:.4f}", custom_normal_style)
             ])
 
-
         batch_stats_table = Table(batch_stats_data, colWidths=[80, 50, 50, 50])
         batch_stats_table.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
@@ -327,7 +318,6 @@ def save_results_to_pdf(statistics, output_dir):
             ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ]))
-
 
         story.append(Paragraph(f"Overall Statistics for {batch_name} across all Pairs", custom_heading_style))
         story.append(batch_stats_table)
@@ -353,7 +343,6 @@ def save_results_to_pdf(statistics, output_dir):
                 row.append(Paragraph(f"M: {mean:.4f}\nMed: {median:.4f}\nStd: {std:.4f}",
                                      custom_normal_style))
             pairs_matrix_data.append(row)
-
 
         pairs_matrix = Table(pairs_matrix_data, colWidths=[50, 50, 50])
         pairs_matrix.setStyle(TableStyle([
@@ -433,7 +422,6 @@ def save_results_to_json(statistics, output_dir):
 
 def store_metrics(metrics, batch_name, batch_patches, band_names):
     ncc_stats, ssim_stats, mi_stats = get_stats_for_batch(batch_patches, band_names, {}, {}, {})
-
 
     for pair in ncc_stats.keys():
         if batch_name not in metrics:

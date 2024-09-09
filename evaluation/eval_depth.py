@@ -1,19 +1,15 @@
 import argparse
-import csv
-import itertools
 import json
-import os
 import time
 from pathlib import Path
+
 import cv2
 import numpy as np
-from matplotlib import pyplot as plt
+
+import src.utils as utils
 from evaluation import eval_utils
 from evaluation.eval_utils import get_patches
-from registration.registration_with_depth_matching import register, set_intrinsic
-import src.utils as utils
-from micasense import capture
-
+from registration.registration_with_depth_matching import register
 
 
 def load_depth_map(depth_path, base_number):
@@ -21,6 +17,7 @@ def load_depth_map(depth_path, base_number):
     depth_image_name = f"{base_number + 1:06d}_rect.npy"  # Increment by 1 and format
     depth_map = np.load(depth_path.joinpath(depth_image_name))
     return cv2.resize(depth_map, (5328, 4608), interpolation=cv2.INTER_LINEAR)
+
 
 def parse_arguments():
     """Parse command line arguments."""
@@ -37,7 +34,6 @@ def parse_arguments():
 
 def main():
     timestamp1 = time.time()
-    # Your code here
     # Parse arguments
     args = parse_arguments()
     micasense_path = Path(args.micasense_path)
@@ -62,25 +58,23 @@ def main():
     for batch_name, images in data.items():
         base_number = int(images[0].split('_')[1])  # Assuming format "IMG_xxxx_x"
         depth_map_resized = load_depth_map(depth_path, base_number)
-        thecapture,image_names=eval_utils.load_the_capture(images,micasense_calib,micasense_path)
-        # Register the bands
+        thecapture, image_names = eval_utils.load_the_capture(images, micasense_calib, micasense_path)
         file_names = utils.extract_all_image_names(image_names)
-        print("befor")
         registered_bands = register(thecapture, depth_map_resized, micasense_calib, P_L, file_names)
-        print("after")
         stack = registered_bands.get_stack(True)
-        eval_utils.save_stack_to_disk(stack,output_dir,batch_name)
+        eval_utils.save_stack_to_disk(stack, output_dir, batch_name)
         band_names = [registered_bands.get_band_name(i) for i in range(stack.shape[2])]
         batch_patches = get_patches(stack, patch_size)
         eval_utils.store_metrics(metrics, batch_name, batch_patches, band_names)
     # Calculate statistics for metrics
     metrics = eval_utils.transform_metric(metrics)
-    statistics =eval_utils.calculate_statistics(metrics)
+    statistics = eval_utils.calculate_statistics(metrics)
     # Save metrics and statistics
     eval_utils.save_results_to_json(statistics, output_dir)
     eval_utils.save_results_to_pdf(statistics, output_dir)
     timestamp2 = time.time()
     print("This took %.2f seconds" % (timestamp2 - timestamp1))
+
 
 if __name__ == "__main__":
     main()
