@@ -36,13 +36,11 @@ The project is organized into the following directories:
 
 ## Installation
 
-To get started, clone the repository and install the necessary dependencies. Ensure you have Python and `pip` or `conda` installed on your system.
+To get started, clone the repository and install the necessary dependencies. Ensure you have Python and `conda` installed on your system.
 
 ```bash
 git clone <repository_url>
 cd multicamera-calibration
-pip install -r requirements.txt
-# or
 conda env create --file=micasense.yaml
 ```
 
