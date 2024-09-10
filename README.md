@@ -2,13 +2,13 @@
 
 ## Overview
 
-This project was developed as part of the Hauptprojekt at HAW (University of Applied Sciences). The main goal was to calibrate a camera system so that sensor data could be combined and used efficiently. The camera system is used to monitor trees that are close to the camera, which results in images having objects at different depths. This depth difference leads to parallax, making feature matching unsuitable for accurate registration as previously mentioned.
+This project was developed as part of the Hauptprojekt at HAW (University of Applied Sciences). The main goal was to calibrate a camera system so that sensor data could be combined and used efficiently.
 
 A major focus of this project was on the registration of Micasense bands due to physical offsets that were not corrected mechanically. As the manufacturer states:
 
 *"The images (and lenses) of RedEdge are not registered or aligned mechanically. This is because the level of precision to be able to do this mechanically and get good alignment results is quite high (and unrealistic). In addition, shock, vibration, or handling of the camera can easily shift the alignment slightly, enough to be very noticeable in the output image."*
 
-Because of this, the registration must happen during post-processing. Micasense offers a feature-based method, but notes that this approach fails when parallax causes a 3D depth field, which occurs when objects are very close or at significantly different distances, such as a nearby tree against a distant background. In such cases, photogrammetry techniques are needed to find a 3D transformation between images.
+Because of this, the registration must happen during post-processing. Micasense offers a feature-based method, but notes that this approach fails when parallax causes a 3D depth field, which occurs when objects are very close or at significantly different distances, such as a nearby tree against a distant background. In such cases, photogrammetry techniques are needed to find a 3D transformation between images. The camera system is used to monitor trees that are close to the camera, which results in images having objects at different depths. This depth difference leads to parallax, making feature matching unsuitable for accurate registration as previously mentioned.
 
 This project implements a method that registers the bands using depth matching (3D transformation). Both approaches – feature matching and depth matching – were implemented and evaluated.
 
