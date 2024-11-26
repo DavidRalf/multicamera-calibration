@@ -16,13 +16,13 @@ def detect_charuco_marker(image_paths):
     # pattern size
     # checkerSize, markerSize,pw,ph,arucoDict = 0.05825,0.05825/2, 16, 9,cv2.aruco.DICT_4X4_100 # nils
     checkerSize, markerSize, pw, ph, arucoDict = (
-        0.06,
-        0.045,
-        12,
-        9,
-        cv2.aruco.DICT_5X5_100,
+       0.06,
+       0.045,
+       12,
+       9,
+       cv2.aruco.DICT_5X5_100,
     )  # coarse
-    # checkerSize, markerSize, pw,ph,arucoDict = 0.03,0.022, 24, 17,cv2.aruco.DICT_5X5_1000 # fine
+    #checkerSize, markerSize, pw,ph,arucoDict = 0.03,0.022, 24, 17,cv2.aruco.DICT_5X5_1000 # fine
     np.set_printoptions(suppress=True, linewidth=1000)
 
     dictionary = cv2.aruco.getPredefinedDictionary(arucoDict)
